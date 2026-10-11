@@ -1,0 +1,34 @@
+# =====================================================================
+# PHARMAVIGIL: GIT IGNORE RULES
+# =====================================================================
+
+# Environment variables & secrets
+.env
+
+# Python bytecode & runtime caches
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# Virtual Environments
+venv/
+venv*/
+*venv/
+.venv/
+env/
+
+# Data exports (preserve .gitkeep)
+data/exports/*
+!data/exports/.gitkeep
+
+# IDE, OS & Editor artifacts
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Log files
+*.log

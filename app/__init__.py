@@ -1,0 +1,6 @@
+"""
+Pharmavigil: Drug Adverse Reaction & Medicine Safety Tracking System
+Core Application Package
+"""
+
+__version__ = "1.0.0"

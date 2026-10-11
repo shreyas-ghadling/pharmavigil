@@ -1,0 +1,30 @@
+# Pharmavigil: Drug Adverse Reaction & Medicine Safety Tracking System
+# Core Requirements
+
+# Web Application Framework & Visualization
+streamlit>=1.28.0
+plotly>=5.18.0
+pandas>=2.0.0
+
+# Database Connectors & Drivers
+mysql-connector-python>=8.2.0
+pymongo>=4.6.0
+
+# Data Validation & Schemas
+pydantic>=2.5.0
+email-validator>=2.1.0
+
+# Security & Authentication
+bcrypt>=4.1.0
+
+# Report Generation & File Handling
+reportlab>=4.0.0
+fpdf2>=2.7.0
+pypdf>=4.0.0
+
+# Configuration & Utilities
+python-dotenv>=1.0.0
+
+# Testing & Quality Assurance
+pytest>=7.4.0
+pytest-mock>=3.12.0

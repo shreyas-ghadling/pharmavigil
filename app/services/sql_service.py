@@ -1,0 +1,284 @@
+"""
+SQL Business Logic Service for Pharmavigil
+Coordinates relational operations, multi-table JOINs, CTE quarantine tracking,
+and stored procedure calls against MySQL.
+"""
+
+from datetime import date
+from typing import List, Dict, Any, Optional, Tuple
+from app.database.mysql_client import mysql_client
+from app.models.medicine import Batch
+from app.utils.exceptions import (
+    ExpiredBatchDispenseError,
+    RecalledBatchOperationError,
+    DatabaseConnectionError
+)
+
+
+class SQLService:
+    """Encapsulates all relational queries and transactions."""
+
+    def get_all_medicines(self) -> List[Dict[str, Any]]:
+        """Retrieves all registered medicines with manufacturer names."""
+        query = """
+            SELECT 
+                m.medicine_id,
+                m.commercial_name,
+                m.generic_name,
+                m.dosage_form,
+                m.strength,
+                m.manufacturer_id,
+                mf.company_name AS manufacturer_name
+            FROM medicines m
+            JOIN manufacturers mf ON m.manufacturer_id = mf.manufacturer_id
+            ORDER BY m.commercial_name ASC;
+        """
+        return mysql_client.execute_query(query)
+
+    def get_batches(self, medicine_id: Optional[int] = None, only_active: bool = False) -> List[Dict[str, Any]]:
+        """Fetches batches with optional medicine filter and status filter."""
+        base_query = """
+            SELECT 
+                b.batch_number,
+                b.medicine_id,
+                m.commercial_name,
+                b.manufacturing_date,
+                b.expiry_date,
+                b.total_units_produced,
+                CASE 
+                    WHEN b.recall_status = 'RECALLED' THEN 'RECALLED'
+                    WHEN b.recall_status = 'EXPIRED' OR b.expiry_date < CURDATE() THEN 'EXPIRED'
+                    ELSE b.recall_status 
+                END AS recall_status,
+                DATEDIFF(b.expiry_date, CURDATE()) AS days_left
+            FROM batches b
+            JOIN medicines m ON b.medicine_id = m.medicine_id
+        """
+        conditions = []
+        params = []
+
+        if medicine_id:
+            conditions.append("b.medicine_id = %s")
+            params.append(medicine_id)
+        if only_active:
+            conditions.append("b.recall_status = 'ACTIVE' AND b.expiry_date >= CURDATE()")
+
+        if conditions:
+            base_query += " WHERE " + " AND ".join(conditions)
+
+        base_query += " ORDER BY b.expiry_date ASC;"
+        return mysql_client.execute_query(base_query, tuple(params))
+
+    def get_batch_by_number(self, batch_number: str) -> Optional[Dict[str, Any]]:
+        """Retrieves full details for a single batch."""
+        query = """
+            SELECT 
+                b.batch_number,
+                b.medicine_id,
+                m.commercial_name,
+                b.manufacturing_date,
+                b.expiry_date,
+                b.total_units_produced,
+                CASE 
+                    WHEN b.recall_status = 'RECALLED' THEN 'RECALLED'
+                    WHEN b.recall_status = 'EXPIRED' OR b.expiry_date < CURDATE() THEN 'EXPIRED'
+                    ELSE b.recall_status 
+                END AS recall_status,
+                DATEDIFF(b.expiry_date, CURDATE()) AS days_left
+            FROM batches b
+            JOIN medicines m ON b.medicine_id = m.medicine_id
+            WHERE b.batch_number = %s;
+        """
+        return mysql_client.execute_one(query, (batch_number,))
+
+    def get_hospitals(self) -> List[Dict[str, Any]]:
+        """Retrieves list of registered partner hospitals."""
+        query = "SELECT hospital_id, hospital_name, city, state, contact_phone FROM hospitals ORDER BY hospital_name ASC;"
+        return mysql_client.execute_query(query)
+
+    def get_inventory_stock_overview(self) -> List[Dict[str, Any]]:
+        """
+        Multi-table SQL JOIN Query:
+        Combines batches, medicines, manufacturers, and aggregated distribution counts.
+        """
+        query = """
+            SELECT 
+                b.batch_number,
+                m.commercial_name,
+                m.generic_name,
+                m.dosage_form,
+                m.strength,
+                mf.company_name AS manufacturer_name,
+                b.manufacturing_date,
+                b.expiry_date,
+                b.total_units_produced,
+                CASE 
+                    WHEN b.recall_status = 'RECALLED' THEN 'RECALLED'
+                    WHEN b.recall_status = 'EXPIRED' OR b.expiry_date < CURDATE() THEN 'EXPIRED'
+                    ELSE b.recall_status 
+                END AS recall_status,
+                DATEDIFF(b.expiry_date, CURDATE()) AS days_left,
+                COALESCE(SUM(bd.quantity_delivered), 0) AS total_distributed_units,
+                (b.total_units_produced - COALESCE(SUM(bd.quantity_delivered), 0)) AS current_stock
+            FROM batches b
+            JOIN medicines m ON b.medicine_id = m.medicine_id
+            JOIN manufacturers mf ON m.manufacturer_id = mf.manufacturer_id
+            LEFT JOIN batch_distribution bd ON b.batch_number = bd.batch_number
+            GROUP BY 
+                b.batch_number, m.commercial_name, m.generic_name, 
+                m.dosage_form, m.strength, mf.company_name, 
+                b.manufacturing_date, b.expiry_date, 
+                b.total_units_produced, b.recall_status
+            ORDER BY b.expiry_date ASC;
+        """
+        return mysql_client.execute_query(query)
+
+    def insert_batch(
+        self,
+        batch_number: str,
+        medicine_id: int,
+        manufacturing_date: str,
+        expiry_date: str,
+        total_units_produced: int,
+        recall_status: str = "ACTIVE"
+    ) -> int:
+        """Inserts a new batch record into MySQL."""
+        query = """
+            INSERT INTO batches (
+                batch_number, medicine_id, manufacturing_date, expiry_date, 
+                total_units_produced, recall_status
+            ) VALUES (%s, %s, %s, %s, %s, %s);
+        """
+        return mysql_client.execute_update(
+            query,
+            (batch_number, medicine_id, manufacturing_date, expiry_date, total_units_produced, recall_status)
+        )
+
+    def dispatch_batch_to_hospital(
+        self,
+        batch_number: str,
+        hospital_id: int,
+        quantity: int,
+        dispatch_date: Optional[str] = None
+    ) -> int:
+        """
+        Validates batch status before recording distribution.
+        Raises ExpiredBatchDispenseError or RecalledBatchOperationError if invalid.
+        """
+        batch_info = self.get_batch_by_number(batch_number)
+        if not batch_info:
+            raise ValueError(f"Batch '{batch_number}' does not exist.")
+
+        # Domain verification via OOP Batch model
+        mfg_date = batch_info["manufacturing_date"]
+        exp_date = batch_info["expiry_date"]
+        # Convert date strings/objects
+        if isinstance(mfg_date, str):
+            mfg_date = date.fromisoformat(mfg_date)
+        if isinstance(exp_date, str):
+            exp_date = date.fromisoformat(exp_date)
+
+        domain_batch = Batch(
+            batch_number=batch_info["batch_number"],
+            medicine_id=batch_info["medicine_id"],
+            manufacturing_date=mfg_date,
+            expiry_date=exp_date,
+            total_units_produced=batch_info["total_units_produced"],
+            recall_status=batch_info["recall_status"]
+        )
+
+        # Enforce safety rules
+        domain_batch.validate_for_dispensing()
+
+        d_date = dispatch_date or str(date.today())
+        query = """
+            INSERT INTO batch_distribution (batch_number, hospital_id, quantity_delivered, dispatch_date)
+            VALUES (%s, %s, %s, %s);
+        """
+        return mysql_client.execute_update(query, (batch_number, hospital_id, quantity, d_date))
+
+    def execute_emergency_recall(
+        self,
+        batch_number: str,
+        reason: str,
+        recalled_by: str = "SAFETY_OFFICER_ADMIN"
+    ) -> Dict[str, Any]:
+        """
+        Invokes the real MySQL Stored Procedure 'sp_recall_batch' with IN and OUT parameters.
+        Rejects recall if the batch is already RECALLED to prevent duplicate audit rows.
+        Returns execution statistics.
+        """
+        batch_info = self.get_batch_by_number(batch_number)
+        if not batch_info:
+            raise ValueError(f"Batch recall failed: Specified batch number '{batch_number}' does not exist in the database.")
+        if batch_info.get("recall_status") == "RECALLED":
+            raise RecalledBatchOperationError(
+                batch_number=batch_number,
+                recall_status="RECALLED",
+                message=f"Batch recall refused: Specified batch '{batch_number}' is already RECALLED."
+            )
+
+        in_out_args = (batch_number, reason, recalled_by, 0, 0)
+        result_args = mysql_client.call_stored_procedure("sp_recall_batch", in_out_args)
+        
+        # result_args maps to (batch_number, reason, recalled_by, affected_hospitals, total_units_recalled)
+        affected_hospitals = result_args[3] if len(result_args) > 3 else 0
+        total_units_recalled = result_args[4] if len(result_args) > 4 else 0
+
+        return {
+            "batch_number": batch_number,
+            "status": "RECALLED",
+            "reason": reason,
+            "recalled_by": recalled_by,
+            "affected_hospitals": affected_hospitals,
+            "total_units_recalled": total_units_recalled
+        }
+
+    def get_high_risk_quarantine_trace(self) -> List[Dict[str, Any]]:
+        """
+        Executes Section 6.2 Advanced Analytical Query:
+        Uses Common Table Expressions (CTE) and multi-table JOIN with GROUP BY ... HAVING
+        to pinpoint hospitals holding active stock of recalled batches.
+        """
+        query = """
+            WITH FlaggedBatches AS (
+                SELECT batch_number, medicine_id, expiry_date
+                FROM batches
+                WHERE recall_status = 'RECALLED'
+            )
+            SELECT 
+                h.hospital_name,
+                h.city,
+                h.contact_phone,
+                m.commercial_name,
+                fb.batch_number,
+                SUM(bd.quantity_delivered) AS total_quarantine_units
+            FROM FlaggedBatches fb
+            JOIN batch_distribution bd ON fb.batch_number = bd.batch_number
+            JOIN hospitals h ON bd.hospital_id = h.hospital_id
+            JOIN medicines m ON fb.medicine_id = m.medicine_id
+            GROUP BY h.hospital_name, h.city, h.contact_phone, m.commercial_name, fb.batch_number
+            HAVING SUM(bd.quantity_delivered) > 0
+            ORDER BY total_quarantine_units DESC;
+        """
+        return mysql_client.execute_query(query)
+
+    def get_recall_audits(self) -> List[Dict[str, Any]]:
+        """Retrieves chronological audit log of all emergency recalls."""
+        query = """
+            SELECT 
+                audit_id,
+                batch_number,
+                reason,
+                recalled_by,
+                affected_hospitals,
+                total_units_recalled,
+                recalled_at
+            FROM recall_audit
+            ORDER BY recalled_at DESC;
+        """
+        return mysql_client.execute_query(query)
+
+
+# Singleton SQL service instance
+sql_service = SQLService()
