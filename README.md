@@ -3,7 +3,7 @@
 [![Course](https://img.shields.io/badge/Course-DCDS%20Lab-blue.svg)](#)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-green.svg)](#)
 [![SQL](https://img.shields.io/badge/Database-MySQL%208.0-orange.svg)](#)
-[![NoSQL](https://img.shields.io/badge/NoSQL-MongoDB%206.0-green.svg)](#)
+[![NoSQL](https://img.shields.io/badge/NoSQL-MongoDB%206.0%2B-green.svg)](#)
 [![Framework](https://img.shields.io/badge/UI-Streamlit-red.svg)](#)
 
 Pharmavigil is an end-to-end Pharmacovigilance and Medicine Safety Tracking System engineered for the **Database Concepts for Data Science (DCDS)** curriculum. It bridges an **ACID-compliant MySQL** relational database for physical pharmaceutical supply chains with a high-throughput **MongoDB** document store for polymorphic adverse event telemetry.
@@ -17,7 +17,7 @@ All commands below are formatted to run natively in **Windows PowerShell** from 
 ### 1. Prerequisites
 - Python 3.10+ (active virtual environment at `C:\venvs\pharmavigil` or standard venv)
 - MySQL Server 8.0+ running on port `3306`
-- MongoDB Community Server running on port `27017`
+- MongoDB Community Server (6.0+) running on port `27017`
 
 ### 2. Environment Configuration (.env)
 Copy the configuration template:
@@ -138,6 +138,8 @@ python -m pytest tests/ -v
 
 ```
 DCDS Project/
+├── .streamlit/
+│   └── config.toml                   # Light dashboard theme configuration
 ├── app/
 │   ├── config.py                     # Environment variables & DB settings
 │   ├── database/
@@ -160,21 +162,23 @@ DCDS Project/
 │       ├── page_patient.py           # Portal 1: Doctor/Patient adverse event reporting
 │       ├── page_inventory.py         # Portal 2: Pharmacist live stock, alarms, CSV intake, dispatch
 │       └── page_admin.py             # Portal 3: Safety Officer alarms, recalls, CTE table, PDF export
+├── data/
+│   ├── sample_batches.csv            # Sample CSV for pharmacist batch intake
+│   └── exports/                      # Target directory for generated PDF/CSV audit reports
+├── scripts/
+│   └── reset_demo.py                 # One-command reset for MySQL and MongoDB demo state
 ├── sql_scripts/
 │   ├── schema.sql                    # 7 normalized MySQL tables, PKs, FKs, CHECK constraints
 │   ├── stored_procedures.sql         # sp_recall_batch transactional stored procedure
 │   └── seed_data.sql                 # Supply chain seed data & bcrypt hashed user records
-├── data/
-│   ├── sample_batches.csv            # Sample CSV for pharmacist batch intake
-│   └── exports/                      # Target directory for generated PDF/CSV audit reports
 ├── tests/
+│   ├── conftest.py                   # Pytest fixtures & isolated test database setup
 │   ├── test_validation.py            # Input validation, fail-closed & RBAC tests
 │   ├── test_sql_operations.py        # SQLite mock & live MySQL stored procedure tests
 │   └── test_mongo_pipeline.py        # MongoDB aggregation pipeline & text search tests
-├── .env                              # Active environment configuration
 ├── .env.example                      # Configuration template
 ├── .gitignore                        # Git ignore rules
 ├── requirements.txt                  # Python dependencies
-├── PROJECT_PLAN.md                   # Evaluation rubric mapping (10/10 marks)
+├── PROJECT_PLAN.md                   # Project implementation plan & architecture rubric
 └── PHARMAVIGIL_PROJECT_GUIDE.md      # Full engineering specification & viva FAQ
 ```

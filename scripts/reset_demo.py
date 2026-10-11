@@ -5,6 +5,7 @@ clears recall_audit, and reseeds MongoDB to exactly 22 clinical reports.
 """
 
 import os
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -20,6 +21,52 @@ from app.database.setup_mongo import setup_mongo_indexes
 from app.database.seed_mongo import seed_mongodb
 
 
+def find_mysql_bin() -> str:
+    r"""
+    Locates mysql.exe automatically:
+    1. Check optional MYSQL_BIN environment / .env variable
+    2. Check PATH first
+    3. Check common install folders under C:\Program Files\MySQL
+    4. Fallback to 'mysql'
+    """
+    # 1. Optional MYSQL_BIN from .env / environment
+    env_bin = os.getenv("MYSQL_BIN")
+    if env_bin:
+        cleaned = env_bin.strip('"\'')
+        p = Path(cleaned)
+        if p.is_file() and p.exists():
+            return str(p)
+        which_env = shutil.which(cleaned)
+        if which_env:
+            return which_env
+
+    # 2. Check PATH first
+    which_path = shutil.which("mysql") or shutil.which("mysql.exe")
+    if which_path:
+        return which_path
+
+    # 3. Check common install folders under C:\Program Files\MySQL
+    mysql_root = Path(r"C:\Program Files\MySQL")
+    if mysql_root.exists():
+        common_candidates = [
+            mysql_root / "MySQL Server 8.0" / "bin" / "mysql.exe",
+            mysql_root / "MySQL Server 8.4" / "bin" / "mysql.exe",
+            mysql_root / "MySQL Server 9.0" / "bin" / "mysql.exe",
+            mysql_root / "MySQL Server 8.1" / "bin" / "mysql.exe",
+            mysql_root / "MySQL Server 8.2" / "bin" / "mysql.exe",
+            mysql_root / "MySQL Server 8.3" / "bin" / "mysql.exe",
+        ]
+        for candidate in common_candidates:
+            if candidate.is_file() and candidate.exists():
+                return str(candidate)
+
+        for candidate in sorted(mysql_root.glob("**/bin/mysql.exe"), reverse=True):
+            if candidate.is_file() and candidate.exists():
+                return str(candidate)
+
+    return "mysql"
+
+
 def reset_demo():
     print("=" * 65)
     print("   PHARMAVIGIL DEMO DATABASE RESET")
@@ -28,18 +75,8 @@ def reset_demo():
     # 1. Reset MySQL
     print("\n[1/3] Reloading MySQL Schema, Stored Procedures, and Seed Data...")
     
-    # Locate mysql CLI
-    candidate_paths = [
-        Path(r"C:\Program Files\MySQL\MySQL Server 8.0\bin\mysql.exe"),
-        Path(r"C:\Program Files\MySQL\MySQL Server 8.4\bin\mysql.exe"),
-    ]
-    mysql_bin = None
-    for p in candidate_paths:
-        if p.exists():
-            mysql_bin = str(p)
-            break
-    if not mysql_bin:
-        mysql_bin = "mysql"
+    mysql_bin = find_mysql_bin()
+    print(f"  [INFO] Using MySQL client binary: {mysql_bin}")
 
     env = os.environ.copy()
     env["MYSQL_PWD"] = config.mysql.password
