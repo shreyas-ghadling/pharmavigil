@@ -636,7 +636,7 @@ small,
   transform: translateY(-50%);
   color: #98a2b3;
 }
-.search-input input {
+.search-input input:not([type="checkbox"]):not([type="range"]) {
   padding-left: 43px;
 }
 .table-toolbar > select {
