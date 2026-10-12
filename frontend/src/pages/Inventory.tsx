@@ -80,7 +80,7 @@ export default function Inventory() {
       />
       <div className="stats-grid">
         <Stat
-          title="Available units"
+          title="Units on hand"
           value={rows.reduce((n, b) => n + Number(b.current_stock), 0)}
           detail="Across registered batches"
           icon={<Package />}

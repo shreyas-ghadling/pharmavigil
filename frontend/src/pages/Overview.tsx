@@ -70,7 +70,7 @@ export default function Overview() {
         <>
           <div className="stats-grid">
             <Stat
-              title="Stock available"
+              title="Stock on hand"
               value={stock.reduce((n, b) => n + Number(b.current_stock), 0)}
               detail="Units across all batches"
               icon={<Package size={22} />}
