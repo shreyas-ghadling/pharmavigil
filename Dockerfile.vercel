@@ -1,0 +1,23 @@
+FROM python:3.14-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PORT=80 \
+    EXPORTS_DIR=/tmp/pharmavigil/exports \
+    STREAMLIT_BROWSER_GATHER_USAGE_STATS=false
+
+WORKDIR /app
+
+COPY requirements.txt ./
+RUN python -m pip install --no-cache-dir -r requirements.txt
+
+# Copy runtime files explicitly so local credentials and the venv stay out.
+COPY app/ ./app/
+COPY .streamlit/ ./.streamlit/
+COPY data/sample_batches.csv ./data/sample_batches.csv
+
+EXPOSE 80
+
+# exec lets Streamlit receive the container's shutdown signal directly.
+CMD ["sh", "-c", "exec python -m streamlit run app/ui/app.py --server.address=0.0.0.0 --server.port=${PORT:-80} --server.headless=true --server.enableCORS=true --server.enableXsrfProtection=true"]

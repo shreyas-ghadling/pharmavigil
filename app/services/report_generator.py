@@ -9,7 +9,7 @@ import io
 import os
 from datetime import datetime, date
 from pathlib import Path
-from typing import List, Dict, Any, Tuple
+from typing import List, Dict, Any, Tuple, Optional
 
 from app.config import config
 from app.database.mysql_client import mysql_client
