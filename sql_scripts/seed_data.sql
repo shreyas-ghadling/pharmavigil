@@ -88,7 +88,7 @@ ON DUPLICATE KEY UPDATE quantity_delivered=VALUES(quantity_delivered);
 -- pharmacist_jane -> pharmacist123
 -- admin_officer -> admin123
 INSERT INTO users (user_id, username, password_hash, role, full_name, email) VALUES
-(1, 'doctor_smith', '$2b$12$7k3UjE.t3tYj5sC47qP2e.vCfxF6L6wzE9X8j/hO0J5J3m0Xw2KqO', 'DOCTOR_PATIENT', 'Dr. Sarah Smith, MD', 'dr.smith@stjudehospital.org'),
-(2, 'pharmacist_jane', '$2b$12$k2L5zN7s2F4O8P9Q0R1S2.tW6vX7yZ8a9B0c1D2eF3gH4iJ5kLm6n', 'PHARMACIST', 'Jane Doe, PharmD', 'jane.doe@centralpharmacy.com'),
-(3, 'admin_officer', '$2b$12$X5r6Y7z8A9B0C1D2E3F4G.hI5jK6lM7nO8pQ9rS0tU1vW2xY3z4A5', 'SAFETY_OFFICER_ADMIN', 'Chief Safety Officer Miller', 'compliance@pharmavigil.gov')
+(1, 'doctor_smith', '$2b$12$bW9qDlpA2uMa7O9HHEqXiOh8GRYZSdZPvQBiG2WvP/8rhQ0PD74qy', 'DOCTOR_PATIENT', 'Dr. Sarah Smith, MD', 'dr.smith@stjudehospital.org'),
+(2, 'pharmacist_jane', '$2b$12$v8Omcdxca1H3G1hlBK/OrO9h.4pqXZo06z8eY2mBbbpdmu8YgvqVG', 'PHARMACIST', 'Jane Doe, PharmD', 'jane.doe@centralpharmacy.com'),
+(3, 'admin_officer', '$2b$12$cl/8mQTZKdZrsu51G.LrXO/PUNbwCPsM47CyI/eiybtoCSwZ5I97i', 'SAFETY_OFFICER_ADMIN', 'Chief Safety Officer Miller', 'compliance@pharmavigil.gov')
 ON DUPLICATE KEY UPDATE role=VALUES(role);

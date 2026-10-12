@@ -165,37 +165,32 @@ class SQLService:
         Validates batch status before recording distribution.
         Raises ExpiredBatchDispenseError or RecalledBatchOperationError if invalid.
         """
-        batch_info = self.get_batch_by_number(batch_number)
-        if not batch_info:
-            raise ValueError(f"Batch '{batch_number}' does not exist.")
-
-        # Domain verification via OOP Batch model
-        mfg_date = batch_info["manufacturing_date"]
-        exp_date = batch_info["expiry_date"]
-        # Convert date strings/objects
-        if isinstance(mfg_date, str):
-            mfg_date = date.fromisoformat(mfg_date)
-        if isinstance(exp_date, str):
-            exp_date = date.fromisoformat(exp_date)
-
-        domain_batch = Batch(
-            batch_number=batch_info["batch_number"],
-            medicine_id=batch_info["medicine_id"],
-            manufacturing_date=mfg_date,
-            expiry_date=exp_date,
-            total_units_produced=batch_info["total_units_produced"],
-            recall_status=batch_info["recall_status"]
-        )
-
-        # Enforce safety rules
-        domain_batch.validate_for_dispensing()
-
-        d_date = dispatch_date or str(date.today())
-        query = """
-            INSERT INTO batch_distribution (batch_number, hospital_id, quantity_delivered, dispatch_date)
-            VALUES (%s, %s, %s, %s);
-        """
-        return mysql_client.execute_update(query, (batch_number, hospital_id, quantity, d_date))
+        # Serialize stock changes on the batch row so concurrent dispatches cannot oversell.
+        with mysql_client.get_cursor(dictionary=True) as cursor:
+            cursor.execute("SELECT * FROM batches WHERE batch_number = %s FOR UPDATE", (batch_number,))
+            batch_info = cursor.fetchone()
+            if not batch_info:
+                raise ValueError("The selected batch does not exist.")
+            mfg = batch_info["manufacturing_date"]
+            exp = batch_info["expiry_date"]
+            domain_batch = Batch(
+                batch_number=batch_number,
+                medicine_id=batch_info["medicine_id"],
+                manufacturing_date=date.fromisoformat(mfg) if isinstance(mfg, str) else mfg,
+                expiry_date=date.fromisoformat(exp) if isinstance(exp, str) else exp,
+                total_units_produced=batch_info["total_units_produced"],
+                recall_status=batch_info["recall_status"],
+            )
+            domain_batch.validate_for_dispensing()
+            cursor.execute("SELECT COALESCE(SUM(quantity_delivered), 0) AS distributed FROM batch_distribution WHERE batch_number = %s", (batch_number,))
+            available = batch_info["total_units_produced"] - cursor.fetchone()["distributed"]
+            if quantity < 1 or quantity > available:
+                raise ValueError(f"Only {available} units are available for dispatch.")
+            cursor.execute(
+                "INSERT INTO batch_distribution (batch_number, hospital_id, quantity_delivered, dispatch_date) VALUES (%s, %s, %s, %s)",
+                (batch_number, hospital_id, quantity, dispatch_date or str(date.today())),
+            )
+            return cursor.rowcount
 
     def execute_emergency_recall(
         self,

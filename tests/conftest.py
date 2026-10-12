@@ -94,13 +94,13 @@ def setup_test_databases():
 
     try:
         initialize_test_mysql()
-    except Exception as e:
-        print(f"Warning: Could not initialize MySQL test database: {e}")
+    except Exception:
+        pytest.exit("MySQL test isolation could not be established. No tests will run.", returncode=1)
 
     try:
         initialize_test_mongodb()
-    except Exception as e:
-        print(f"Warning: Could not initialize MongoDB test database: {e}")
+    except Exception:
+        pytest.exit("MongoDB test isolation could not be established. No tests will run.", returncode=1)
 
     yield
 

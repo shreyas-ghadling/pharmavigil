@@ -1,71 +1,32 @@
-# Vercel deployment compatibility check
+# Vercel deployment
 
-This repository includes `Dockerfile.vercel` for an initial Streamlit hosting
-check using Vercel's beta container runtime. This path has not yet been tested
-on Vercel. A successful build alone does not verify Streamlit sessions.
+The existing `pharmavigil` project (Priority AI workspace) hosts React and FastAPI through `Dockerfile.vercel`. Keep the Container preset, repository-root directory, and Node 24 build stage. Do not set a static output directory in project settings: FastAPI serves the compiled SPA and `/api` at the same origin.
 
-## Repository access
+## Backend environment variables
 
-For an organization-owned repository, Vercel's GitHub import requires an
-organization owner or member with repository access. An outside collaborator
-cannot import it through that integration. The Hobby plan cannot deploy a
-private organization repository through Git integration.
+- MYSQL_HOST, MYSQL_PORT, MYSQL_USER, MYSQL_PASSWORD, MYSQL_DATABASE
+- MONGO_URI, MONGO_DB_NAME, MONGO_ADVERSE_COLLECTION
+- SESSION_SECRET: independently generated random secret, stored as Secret
+- APP_ENV=production and APP_DEBUG=false
 
-## Initial hosting check
+Database credentials remain exclusively on the backend. Supply variables to the deployment's environment and redeploy after changes. A preview deployment uses the preview environment variables; production values are not automatically available to previews.
 
-1. Ensure the container files and the missing `Optional` import fix are present
-   in the Git branch selected for deployment.
-2. In Vercel, select **Add New > Project** and import the repository. Keep the
-   project root at the repository root. Vercel detects `Dockerfile.vercel`.
-   Do not configure a static output directory or use `streamlit run` as a build
-   command; the container starts the server.
-3. Deploy without database credentials first to check hosting. The app's demo
-   login fallback can display the portals, but database operations will fail
-   until hosted databases are configured. The local `.env` is not included.
-4. Check `/_stcore/health`, load the actual page, use the demo logins, navigate
-   portals, refresh, and test session behavior after idle time or reconnection.
-   Check runtime logs for WebSocket failures and session resets.
+Exports are generated under `/tmp/pharmavigil/exports`, downloaded immediately, and removed afterward. They are not durable storage. API startup never seeds or resets databases.
 
-## Hosted databases and full verification
+## Release checks
 
-Add environment variables in Vercel for the intended deployment environment:
+1. Run TypeScript/build, lint, API contract tests, and isolated integration tests.
+2. Push the migration branch and build a preview in this same project.
+3. Verify login for each role, inventory, safety signals/search, exports, mobile layouts, and direct-link refresh behavior.
+4. Production database checks are read-only; write tests run against isolated databases.
+5. Deploy the tested commit to production and verify the public URL.
 
-- `MYSQL_HOST`, `MYSQL_PORT`, `MYSQL_USER`, `MYSQL_PASSWORD`, `MYSQL_DATABASE`
-- `MONGO_URI`, `MONGO_DB_NAME`, `MONGO_ADVERSE_COLLECTION`
-- `APP_ENV=production`, `APP_DEBUG=false`, and a new random `APP_SECRET_KEY`
+## Original version
 
-Use hosted database addresses, not `localhost`. Configure provider-required
-TLS and network access, and verify connectivity before initializing data.
-The MySQL SQL scripts currently use `pharmavigil_db` explicitly; align this
-with the hosted database name before executing them. Initialization is an
-explicit setup step, not a container startup action.
+Pre-port repository commit: `6578e2b` (Pre-port backup commit).
+Previous production deployment captured before migration: `dpl_3zaHWbHYeEAxch92XHTttHy6Fw8K`.
+The user also retains a local backup. Restoring that source/deployment restores the Streamlit version; the active source no longer contains Streamlit.
 
-After database setup, redeploy to load environment variables and verify:
+## Seed account hash repair
 
-- MySQL-backed logins and all three role-specific portals.
-- Adverse report submission and MongoDB search/safety signals.
-- Inventory display, CSV intake, dispatch, and the recall procedure.
-- PDF and CSV downloads.
-
-Exports use `/tmp/pharmavigil/exports` in the container. They are temporary
-files for immediate download, not durable cloud storage. Login includes
-hardcoded demo-account fallback, so this deployment configuration is intended
-for the project demo; authentication needs separate hardening before real use.
-
-## Local container check (requires Docker)
-
-```powershell
-docker build -f Dockerfile.vercel -t pharmavigil-vercel .
-docker run --rm -p 8502:80 pharmavigil-vercel
-```
-
-Open `http://localhost:8502`. This checks the container UI without connecting
-to the databases on the Windows host. Use hosted database variables for full
-container verification.
-
-## References
-
-- https://vercel.com/docs/functions/runtimes/container
-- https://vercel.com/docs/functions/websockets
-- https://vercel.com/docs/git/vercel-for-github
-- https://vercel.com/docs/git
+The original SQL seed had placeholder hashes masked by Streamlit's embedded demo fallback. `scripts/repair_seed_accounts.py` replaces only hashes that exactly match the known pre-port placeholders, retaining the documented account passwords. Custom or already-valid hashes are left unchanged. The default target is the local `pharmavigil_test`; `--hosted` explicitly selects the ignored hosted credential file. This is a one-time migration, not a deployment startup step.

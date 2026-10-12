@@ -20,29 +20,6 @@ ROLE_SAFETY_OFFICER_ADMIN = "SAFETY_OFFICER_ADMIN"
 
 ALL_ROLES = [ROLE_DOCTOR_PATIENT, ROLE_PHARMACIST, ROLE_SAFETY_OFFICER_ADMIN]
 
-# In-Memory Demo Users (Used for immediate demonstration or when DB user table is not yet seeded)
-DEMO_CREDENTIALS = {
-    "doctor_smith": {
-        "password": "doctor123",
-        "role": ROLE_DOCTOR_PATIENT,
-        "full_name": "Dr. Sarah Smith, MD",
-        "email": "dr.smith@stjudehospital.org"
-    },
-    "pharmacist_jane": {
-        "password": "pharmacist123",
-        "role": ROLE_PHARMACIST,
-        "full_name": "Jane Doe, PharmD",
-        "email": "jane.doe@centralpharmacy.com"
-    },
-    "admin_officer": {
-        "password": "admin123",
-        "role": ROLE_SAFETY_OFFICER_ADMIN,
-        "full_name": "Chief Safety Officer Miller",
-        "email": "compliance@pharmavigil.gov"
-    }
-}
-
-
 def hash_password(password: str) -> str:
     """Hashes a plaintext password using bcrypt (or salted SHA256 fallback)."""
     if HAS_BCRYPT:
@@ -84,57 +61,14 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 
 
 def authenticate_user(username: str, password: str) -> Optional[Dict[str, Any]]:
-    """
-    Authenticates a user against the MySQL users table.
-    Falls back gracefully to demo credentials if MySQL is offline or users table is empty.
-    """
-    cleaned_username = username.strip().lower()
-
-    # 1. Try MySQL Database authentication
-    try:
-        from app.database.mysql_client import mysql_client
-        query = "SELECT user_id, username, password_hash, role, full_name, email FROM users WHERE LOWER(username) = %s"
-        user_row = mysql_client.execute_one(query, (cleaned_username,))
-        
-        if user_row:
-            stored_hash = user_row.get("password_hash", "")
-            # Check bcrypt / salted hash
-            if verify_password(password, stored_hash):
-                return {
-                    "user_id": user_row["user_id"],
-                    "username": user_row["username"],
-                    "role": user_row["role"],
-                    "full_name": user_row["full_name"],
-                    "email": user_row["email"],
-                    "source": "mysql"
-                }
-            # Also allow fallback match against demo accounts if seed used sample placeholder
-            if cleaned_username in DEMO_CREDENTIALS and password == DEMO_CREDENTIALS[cleaned_username]["password"]:
-                return {
-                    "user_id": user_row["user_id"],
-                    "username": user_row["username"],
-                    "role": user_row["role"],
-                    "full_name": user_row["full_name"],
-                    "email": user_row["email"],
-                    "source": "mysql_demo_sync"
-                }
-    except Exception:
-        # Fallback to local demo credentials for seamless demo/offline presentations
-        pass
-
-    # 2. Check in-memory demo credentials
-    if cleaned_username in DEMO_CREDENTIALS:
-        demo = DEMO_CREDENTIALS[cleaned_username]
-        if password == demo["password"]:
-            return {
-                "user_id": 999,
-                "username": cleaned_username,
-                "role": demo["role"],
-                "full_name": demo["full_name"],
-                "email": demo["email"],
-                "source": "in_memory_demo"
-            }
-
+    """Verify an existing MySQL account; never bypass password verification."""
+    from app.database.mysql_client import mysql_client
+    row = mysql_client.execute_one(
+        "SELECT user_id, username, password_hash, role, full_name, email FROM users WHERE LOWER(username) = %s",
+        (username.strip().lower(),),
+    )
+    if row and verify_password(password, row["password_hash"]):
+        return {key: row[key] for key in ("user_id", "username", "role", "full_name", "email")}
     return None
 
 

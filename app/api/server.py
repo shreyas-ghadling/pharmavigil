@@ -1,0 +1,314 @@
+"""Same-origin API and SPA host. Database secrets never enter frontend assets."""
+import io
+import os
+import secrets
+import hashlib
+from datetime import date
+from pathlib import Path
+from urllib.parse import urlsplit
+
+from fastapi import FastAPI, Depends, HTTPException, Request, Response, UploadFile, Query
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
+from starlette.background import BackgroundTask
+from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
+from pydantic import BaseModel, Field
+
+from app.config import config
+from app.database.mysql_client import mysql_client
+from app.database.mongo_client import mongo_client
+from app.services.sql_service import sql_service
+from app.services.mongo_service import mongo_service
+from app.services.report_generator import report_generator
+from app.models.schemas import AdverseReportCreate
+from app.utils.auth import verify_password, ALL_ROLES
+from app.utils.exceptions import DatabaseConnectionError, PharmavigilException
+
+app = FastAPI(title="Pharmavigil API", docs_url=None, redoc_url=None)
+SESSION_SECONDS = 8 * 3600
+COOKIE = "pv_session"
+ADMIN = "SAFETY_OFFICER_ADMIN"
+DOCTOR = "DOCTOR_PATIENT"
+PHARMACIST = "PHARMACIST"
+secure_cookie = os.getenv("APP_ENV", "development") == "production"
+session_secret = os.getenv("SESSION_SECRET", "")
+if not session_secret:
+    raise RuntimeError("SESSION_SECRET is required; set a random secret in backend configuration.")
+signer = URLSafeTimedSerializer(session_secret, salt="pharmavigil-session-v1")
+
+
+def error(status, message, fields=None):
+    return JSONResponse({"message": message, "fields": fields or []}, status_code=status)
+
+
+@app.middleware("http")
+async def request_safety(request: Request, call_next):
+    if request.url.path.startswith("/api/") and request.method not in {"GET", "HEAD", "OPTIONS"}:
+        origin = request.headers.get("origin")
+        if origin and urlsplit(origin).netloc != request.headers.get("host"):
+            return error(403, "This request must come from Pharmavigil.")
+        if request.url.path != "/api/auth/login":
+            try:
+                token = signer.loads(request.cookies.get(COOKIE, ""), max_age=SESSION_SECONDS)
+            except (BadSignature, SignatureExpired):
+                return error(401, "Please sign in again.")
+            if not secrets.compare_digest(request.headers.get("x-csrf-token", ""), token.get("csrf", "")):
+                return error(403, "Your session could not be verified. Refresh and try again.")
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["Referrer-Policy"] = "same-origin"
+    response.headers["X-Frame-Options"] = "DENY"
+    if request.url.path.startswith("/api/"):
+        response.headers["Cache-Control"] = "no-store"
+    return response
+
+
+@app.exception_handler(HTTPException)
+async def http_error(request, exc):
+    return error(exc.status_code, exc.detail)
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_error(request, exc):
+    return error(422, "Check the highlighted fields.", [
+        {"field": ".".join(str(x) for x in e["loc"][1:]), "message": e["msg"]}
+        for e in exc.errors()
+    ])
+
+
+@app.exception_handler(DatabaseConnectionError)
+async def database_error(request, exc):
+    return error(503, "The database is temporarily unavailable. Please try again.")
+
+
+@app.exception_handler(PharmavigilException)
+async def domain_error(request, exc):
+    return error(409, str(exc))
+
+
+@app.exception_handler(ValueError)
+async def input_error(request, exc):
+    message = str(exc)
+    return error(422, message if message.startswith(("Only ", "The selected batch")) else "The operation could not be completed. Check your inputs.")
+
+
+@app.exception_handler(Exception)
+async def unexpected_error(request, exc):
+    return error(503, "The operation is temporarily unavailable. Please try again.")
+
+
+def account(username):
+    return mysql_client.execute_one(
+        "SELECT user_id, username, password_hash, role, full_name, email FROM users WHERE LOWER(username) = %s",
+        (username.strip().lower(),),
+    )
+
+
+def public_user(row):
+    return {k: row[k] for k in ("user_id", "username", "role", "full_name", "email")}
+
+
+def current_user(request: Request):
+    try:
+        token = signer.loads(request.cookies.get(COOKIE, ""), max_age=SESSION_SECONDS)
+    except (BadSignature, SignatureExpired):
+        raise HTTPException(401, "Please sign in again.")
+    row = account(token["username"])
+    if not row or row["role"] not in ALL_ROLES:
+        raise HTTPException(401, "This account is no longer available.")
+    fingerprint = hashlib.sha256(row["password_hash"].encode()).hexdigest()
+    if not secrets.compare_digest(fingerprint, token.get("fingerprint", "")):
+        raise HTTPException(401, "Please sign in again.")
+    return {**public_user(row), "csrf": token["csrf"]}
+
+
+def access(*roles):
+    def guard(user=Depends(current_user)):
+        if user["role"] not in roles:
+            raise HTTPException(403, "Your role cannot access this section.")
+        return user
+    return guard
+
+
+class Login(BaseModel):
+    username: str = Field(min_length=1, max_length=100)
+    password: str = Field(min_length=1, max_length=200)
+
+
+@app.post("/api/auth/login")
+def login(payload: Login, response: Response):
+    row = account(payload.username)
+    if not row or row["role"] not in ALL_ROLES or not verify_password(payload.password, row["password_hash"]):
+        raise HTTPException(401, "Incorrect username or password.")
+    csrf = secrets.token_urlsafe(32)
+    token = signer.dumps({"username": row["username"], "csrf": csrf,
+                          "fingerprint": hashlib.sha256(row["password_hash"].encode()).hexdigest()})
+    response.set_cookie(COOKIE, token, httponly=True, secure=secure_cookie,
+                        samesite="strict", max_age=SESSION_SECONDS, path="/")
+    return {**public_user(row), "csrf": csrf}
+
+
+@app.get("/api/auth/me")
+def me(user=Depends(current_user)):
+    return user
+
+
+@app.post("/api/auth/logout")
+def logout(response: Response, user=Depends(current_user)):
+    response.delete_cookie(COOKIE, path="/", secure=secure_cookie, httponly=True, samesite="strict")
+    return {"message": "Signed out."}
+
+
+@app.get("/api/health")
+def health(user=Depends(current_user)):
+    try:
+        mysql_client.execute_one("SELECT 1 AS alive")
+        mysql_ok = True
+    except Exception:
+        mysql_ok = False
+    return {"mysql": mysql_ok, "mongodb": mongo_client.ping()}
+
+
+@app.get("/api/overview")
+def overview(user=Depends(current_user)):
+    result = {"inventory": [], "signals": [], "recalls": [], "warnings": []}
+    jobs = []
+    if user["role"] in {ADMIN, PHARMACIST}:
+        jobs.append(("inventory", sql_service.get_inventory_stock_overview))
+    if user["role"] == ADMIN:
+        jobs.extend([("signals", mongo_service.execute_safety_signal_detection_pipeline),
+                     ("recalls", sql_service.get_recall_audits)])
+    for name, job in jobs:
+        try:
+            result[name] = job()
+        except Exception:
+            result["warnings"].append(f"{name.title()} is temporarily unavailable.")
+    return result
+
+
+@app.get("/api/medicines")
+def medicines(user=Depends(current_user)):
+    return sql_service.get_all_medicines()
+
+
+@app.get("/api/batches")
+def batches(medicine_id: int | None = None, only_active: bool = False, user=Depends(current_user)):
+    return sql_service.get_batches(medicine_id, only_active)
+
+
+@app.get("/api/hospitals")
+def hospitals(user=Depends(current_user)):
+    return sql_service.get_hospitals()
+
+
+@app.get("/api/inventory")
+def inventory(user=Depends(access(ADMIN, PHARMACIST))):
+    return sql_service.get_inventory_stock_overview()
+
+
+@app.post("/api/adverse-reports", status_code=201)
+def adverse_report(payload: AdverseReportCreate, user=Depends(access(ADMIN, DOCTOR))):
+    data = payload.model_dump()
+    med = next((m for m in sql_service.get_all_medicines() if m["medicine_id"] == payload.medicine_id), None)
+    if not med:
+        raise HTTPException(422, "Choose a registered medicine.")
+    data["medicine_name"] = med["commercial_name"]
+    return {"report_id": mongo_service.insert_adverse_report(data)}
+
+
+@app.post("/api/inventory/import")
+def import_csv(file: UploadFile, user=Depends(access(ADMIN, PHARMACIST))):
+    content = file.file.read(2 * 1024 * 1024 + 1)
+    if len(content) > 2 * 1024 * 1024:
+        raise HTTPException(413, "Use a CSV file smaller than 2 MB.")
+    try:
+        text = content.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        raise HTTPException(422, "Save your CSV with UTF-8 encoding.")
+    count, errors = report_generator.ingest_batches_from_csv(io.StringIO(text))
+    if errors:
+        # Row errors may contain database internals: only expose safe validation lines.
+        safe_errors = [e if e.startswith("Row ") else "No rows were saved. Check the file and try again." for e in errors]
+        return JSONResponse({"count": 0, "errors": safe_errors}, status_code=422)
+    return {"count": count, "errors": []}
+
+
+class Dispatch(BaseModel):
+    batch_number: str
+    hospital_id: int = Field(gt=0)
+    quantity: int = Field(gt=0, le=100000)
+    dispatch_date: date
+
+
+@app.post("/api/inventory/dispatch", status_code=201)
+def dispatch(payload: Dispatch, user=Depends(access(ADMIN, PHARMACIST))):
+    sql_service.dispatch_batch_to_hospital(payload.batch_number, payload.hospital_id,
+                                         payload.quantity, payload.dispatch_date.isoformat())
+    return {"message": "Stock dispatched successfully."}
+
+
+@app.get("/api/signals")
+def signals(min_severity: int = Query(3, ge=1, le=5), min_incidents: int = Query(2, ge=1, le=10),
+            user=Depends(access(ADMIN))):
+    return mongo_service.execute_safety_signal_detection_pipeline(min_severity, min_incidents)
+
+
+@app.get("/api/clinical-search")
+def search(q: str = Query("", max_length=200), user=Depends(access(ADMIN))):
+    return mongo_service.search_clinical_notes_text(q)
+
+
+@app.get("/api/recalls")
+def recalls(user=Depends(access(ADMIN))):
+    return sql_service.get_recall_audits()
+
+
+@app.get("/api/quarantine")
+def quarantine(user=Depends(access(ADMIN))):
+    return sql_service.get_high_risk_quarantine_trace()
+
+
+class Recall(BaseModel):
+    batch_number: str = Field(min_length=3)
+    reason: str = Field(min_length=5, max_length=255)
+
+
+@app.post("/api/recalls", status_code=201)
+def recall(payload: Recall, user=Depends(access(ADMIN))):
+    return sql_service.execute_emergency_recall(payload.batch_number, payload.reason, user["full_name"])
+
+
+@app.get("/api/exports/sample.csv")
+def sample(user=Depends(access(ADMIN, PHARMACIST))):
+    return FileResponse(config.data_dir / "sample_batches.csv", filename="sample_batches.csv", media_type="text/csv")
+
+
+@app.get("/api/exports/quarantine.csv")
+def csv_export(user=Depends(access(ADMIN))):
+    csv = report_generator.generate_csv_quarantine_manifest(sql_service.get_high_risk_quarantine_trace(),
+                                                            sql_service.get_recall_audits())
+    return Response(csv, media_type="text/csv", headers={"Content-Disposition": 'attachment; filename="quarantine_manifest.csv"'})
+
+
+@app.get("/api/exports/audit.pdf")
+def pdf_export(user=Depends(access(ADMIN))):
+    filename = f"audit-{secrets.token_hex(16)}.pdf"
+    path = report_generator.generate_pdf_recall_manifest(sql_service.get_high_risk_quarantine_trace(),
+                                                       sql_service.get_recall_audits(), filename)
+    return FileResponse(path, filename="Safety_Audit_Recall_Manifest.pdf", media_type="application/pdf",
+                        background=BackgroundTask(Path(path).unlink, missing_ok=True))
+
+
+frontend = config.base_dir / "frontend" / "dist"
+if frontend.exists():
+    app.mount("/assets", StaticFiles(directory=frontend / "assets"), name="assets")
+
+    @app.get("/{path:path}", include_in_schema=False)
+    def spa(path: str):
+        if path == "api" or path.startswith("api/"):
+            raise HTTPException(404, "API endpoint not found.")
+        candidate = (frontend / path).resolve()
+        if candidate.is_relative_to(frontend.resolve()) and candidate.is_file():
+            return FileResponse(candidate)
+        return FileResponse(frontend / "index.html", headers={"Cache-Control": "no-cache"})

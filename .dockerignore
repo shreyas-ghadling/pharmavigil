@@ -13,3 +13,9 @@ data/exports
 *.log
 tests
 *.pdf
+.agents
+design_reference
+**/node_modules
+frontend/dist
+frontend/package-lock.json
+api_tests

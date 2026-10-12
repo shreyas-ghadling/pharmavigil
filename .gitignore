@@ -41,3 +41,5 @@ Thumbs.db
 /.agents/skill-installations.json
 /frontend/package-lock.json
 node_modules/
+/design_reference/
+/frontend/dist/
