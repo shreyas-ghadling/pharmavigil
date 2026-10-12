@@ -4,6 +4,9 @@
 
 # Environment variables & secrets
 .env
+.env.*
+!.env.example
+.vercel/
 
 # Python bytecode & runtime caches
 __pycache__/
@@ -32,3 +35,9 @@ Thumbs.db
 
 # Log files
 *.log
+
+# Project-local skills and installation metadata
+/.agents/skills/
+/.agents/skill-installations.json
+/frontend/package-lock.json
+node_modules/

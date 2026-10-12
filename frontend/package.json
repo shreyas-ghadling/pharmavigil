@@ -1,0 +1,8 @@
+{
+  "name": "pharmavigil-frontend",
+  "version": "0.0.0",
+  "private": true,
+  "dependencies": {
+    "animejs": "^4.5.0"
+  }
+}
