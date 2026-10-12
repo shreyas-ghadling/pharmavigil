@@ -1,13 +1,104 @@
-export type Role = 'DOCTOR_PATIENT' | 'PHARMACIST' | 'SAFETY_OFFICER_ADMIN';
-export interface User {user_id:number;username:string;role:Role;full_name:string;email:string;csrf:string}
-export interface Medicine {medicine_id:number;commercial_name:string;generic_name:string;strength:string;dosage_form:string;manufacturer_name:string}
-export interface Batch {batch_number:string;medicine_id:number;commercial_name:string;manufacturing_date:string;expiry_date:string;total_units_produced:number;recall_status:string;days_left:number}
-export interface Stock extends Batch {generic_name:string;dosage_form:string;strength:string;manufacturer_name:string;current_stock:number;total_distributed_units:number}
-export interface Hospital {hospital_id:number;hospital_name:string;city:string;state:string;contact_phone:string}
-export interface Signal {medicine:string;symptom:string;incident_count:number;avg_severity:number;critical_cases:number;signal_risk_score:number;risk_level:string;recommendation:string}
-export interface Recall {audit_id:number;batch_number:string;reason:string;recalled_by:string;affected_hospitals:number;total_units_recalled:number;recalled_at:string}
-export interface Quarantine {hospital_name:string;city:string;contact_phone:string;commercial_name:string;batch_number:string;total_quarantine_units:number}
-export interface ClinicalReport {report_id:string;batch_number:string;medicine_name:string;severity_score:number;clinical_notes:string;reported_at:string;reporter_type:string}
-export interface Overview {inventory:Stock[];signals:Signal[];recalls:Recall[];warnings:string[]}
-export interface Symptom {name:string;onset_minutes:number;is_critical:boolean}
-export interface AdverseReport {medicine_id:number;medicine_name:string;batch_number:string;reporter_type:string;hospital_id:number|null;patient_demographics:{age:number;gender:string;pre_existing_conditions:string[]};symptoms:Symptom[];severity_score:number;clinical_notes:string}
+export type Role = "DOCTOR_PATIENT" | "PHARMACIST" | "SAFETY_OFFICER_ADMIN";
+export interface User {
+  user_id: number;
+  username: string;
+  role: Role;
+  full_name: string;
+  email: string;
+  csrf: string;
+}
+export interface Medicine {
+  medicine_id: number;
+  commercial_name: string;
+  generic_name: string;
+  strength: string;
+  dosage_form: string;
+  manufacturer_name: string;
+}
+export interface Batch {
+  batch_number: string;
+  medicine_id: number;
+  commercial_name: string;
+  manufacturing_date: string;
+  expiry_date: string;
+  total_units_produced: number;
+  recall_status: string;
+  days_left: number;
+}
+export interface Stock extends Batch {
+  generic_name: string;
+  dosage_form: string;
+  strength: string;
+  manufacturer_name: string;
+  current_stock: number;
+  total_distributed_units: number;
+}
+export interface Hospital {
+  hospital_id: number;
+  hospital_name: string;
+  city: string;
+  state: string;
+  contact_phone: string;
+}
+export interface Signal {
+  medicine: string;
+  symptom: string;
+  incident_count: number;
+  avg_severity: number;
+  critical_cases: number;
+  signal_risk_score: number;
+  risk_level: string;
+  recommendation: string;
+}
+export interface Recall {
+  audit_id: number;
+  batch_number: string;
+  reason: string;
+  recalled_by: string;
+  affected_hospitals: number;
+  total_units_recalled: number;
+  recalled_at: string;
+}
+export interface Quarantine {
+  hospital_name: string;
+  city: string;
+  contact_phone: string;
+  commercial_name: string;
+  batch_number: string;
+  total_quarantine_units: number;
+}
+export interface ClinicalReport {
+  report_id: string;
+  batch_number: string;
+  medicine_name: string;
+  severity_score: number;
+  clinical_notes: string;
+  reported_at: string;
+  reporter_type: string;
+}
+export interface Overview {
+  inventory: Stock[];
+  signals: Signal[];
+  recalls: Recall[];
+  warnings: string[];
+}
+export interface Symptom {
+  name: string;
+  onset_minutes: number;
+  is_critical: boolean;
+}
+export interface AdverseReport {
+  medicine_id: number;
+  medicine_name: string;
+  batch_number: string;
+  reporter_type: string;
+  hospital_id: number | null;
+  patient_demographics: {
+    age: number;
+    gender: string;
+    pre_existing_conditions: string[];
+  };
+  symptoms: Symptom[];
+  severity_score: number;
+  clinical_notes: string;
+}

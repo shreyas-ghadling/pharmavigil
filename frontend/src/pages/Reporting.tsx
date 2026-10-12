@@ -1,22 +1,534 @@
-import { useEffect, useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, ArrowRight, CheckCircle2, ClipboardPlus } from 'lucide-react';
-import { api } from '../api';
-import { Loading, Notice, PageTitle, Panel } from '../components/ui';
-import type { AdverseReport, Batch, Medicine, Hospital } from '../types';
-const symptoms=['Severe Dizziness','Acute Hypotension','Arrhythmia','Tachycardia','Bradycardia','Paradoxical Bronchospasm','Dyspnea','Severe Hypoglycemia','Anaphylaxis','Seizure','Nausea','Vomiting','Headache','Skin Rash','Facial Edema','Tremors','Somnolence'];
-const conditions=['Hypertension','Type 2 Diabetes','Coronary Artery Disease','Asthma','COPD','Chronic Kidney Disease','Neuropathic Pain'];
-const initial:AdverseReport={medicine_id:0,medicine_name:'',batch_number:'',reporter_type:'HOSPITAL_DOCTOR',hospital_id:null,patient_demographics:{age:45,gender:'Female',pre_existing_conditions:[]},symptoms:[{name:'Severe Dizziness',onset_minutes:30,is_critical:false}],severity_score:3,clinical_notes:''};
-export default function Reporting(){
- const [draft,setDraft]=useState<AdverseReport>(initial);const[step,setStep]=useState(0);const[error,setError]=useState('');const cache=useQueryClient();
- const meds=useQuery({queryKey:['medicines'],queryFn:()=>api<Medicine[]>('/medicines')});
- const hospitals=useQuery({queryKey:['hospitals'],queryFn:()=>api<Hospital[]>('/hospitals')});
- const batches=useQuery({queryKey:['batches',draft.medicine_id],queryFn:()=>api<Batch[]>(`/batches?medicine_id=${draft.medicine_id}&only_active=true`),enabled:!!draft.medicine_id});
- const submit=useMutation({mutationFn:()=>api<{report_id:string}>('/adverse-reports',{method:'POST',body:JSON.stringify(draft)}),onSuccess:()=>{void cache.invalidateQueries({queryKey:['overview']});void cache.invalidateQueries({queryKey:['signals']});}});
- useEffect(()=>{if(meds.data?.length && !draft.medicine_id){const med=meds.data[0];setDraft(d=>({...d,medicine_id:med.medicine_id,medicine_name:med.commercial_name}));}},[meds.data,draft.medicine_id]);
- const patch=(p:Partial<AdverseReport>)=>setDraft(d=>({...d,...p}));
- function next(){setError('');if(step===0 && (!draft.batch_number || !batches.data?.some(b=>b.batch_number===draft.batch_number))){setError('Choose an active batch for this medicine.');return;}if(step===2 && !draft.symptoms.length){setError('Select at least one observed symptom.');return;}setStep(s=>Math.min(3,s+1));}
- if(meds.isPending)return <Loading/>;if(meds.error)return <Notice>{meds.error.message}</Notice>;
- if(submit.isSuccess)return <><PageTitle title="Report submitted" description="Your observations have been recorded for safety monitoring."/><div className="success-card panel"><CheckCircle2 size={56}/><h2>Thank you for reporting</h2><p>Keep this tracking ID for your records.</p><strong className="receipt-id">{submit.data.report_id}</strong><p>{draft.medicine_name} · {draft.batch_number}</p><p>Severity {draft.severity_score}/5 · {draft.symptoms.length} observed symptoms</p><button className="primary" onClick={()=>{submit.reset();setDraft(initial);setStep(0);}}>Start another report<ClipboardPlus size={18}/></button></div></>;
- return <><PageTitle title="Adverse reports" description="Report a suspected reaction with clear, complete observations."/><div className="stepper">{['Medication','Patient','Symptoms','Review'].map((s,i)=><div className={`step ${i<=step?'step-active':''}`} key={s}><span>{i<step?<CheckCircle2 size={19}/>:i+1}</span><strong>{s}</strong></div>)}</div><Panel title={['Identify the medication','Patient details','Describe the reaction','Review your report'][step]} description={['Choose the medicine and its active production batch.','Record relevant demographics without personal identifiers.','Add symptoms, onset, and the severity of the reaction.','Check the details before submitting to the safety team.'][step]}>{error?<Notice>{error}</Notice>:null}{submit.error?<Notice>{submit.error.message}</Notice>:null}<form onSubmit={e=>{e.preventDefault();if(step===3)submit.mutate();else next();}}><div className="form-content">{step===0?<div className="form-grid"><label>Medicine<select required value={draft.medicine_id} onChange={e=>{const m=meds.data!.find(m=>m.medicine_id===Number(e.target.value))!;patch({medicine_id:m.medicine_id,medicine_name:m.commercial_name,batch_number:''});}}>{meds.data!.map(m=><option value={m.medicine_id} key={m.medicine_id}>{m.commercial_name} — {m.generic_name} {m.strength}</option>)}</select></label><label>Production batch<select required value={draft.batch_number} onChange={e=>patch({batch_number:e.target.value})}><option value="">{batches.isPending?'Loading batches…':'Select a batch'}</option>{batches.data?.map(b=><option key={b.batch_number}>{b.batch_number}</option>)}</select>{batches.error?<span className="field-error">{batches.error.message}</span>:null}{batches.data?.length===0?<span className="field-error">No active batches are available for this medicine.</span>:null}</label><label>Reporter type<select value={draft.reporter_type} onChange={e=>patch({reporter_type:e.target.value})}><option value="HOSPITAL_DOCTOR">Hospital doctor</option><option value="PATIENT">Patient</option><option value="PHARMACIST">Pharmacist</option></select></label><label>Reporting hospital (optional)<select value={draft.hospital_id??''} onChange={e=>patch({hospital_id:e.target.value?Number(e.target.value):null})}><option value="">Not specified</option>{hospitals.data?.map(h=><option key={h.hospital_id} value={h.hospital_id}>{h.hospital_name}</option>)}</select></label></div>:step===1?<><div className="form-grid"><label>Age (years)<input required type="number" min="0" max="120" value={draft.patient_demographics.age} onChange={e=>patch({patient_demographics:{...draft.patient_demographics,age:Number(e.target.value)}})}/></label><label>Gender<select value={draft.patient_demographics.gender} onChange={e=>patch({patient_demographics:{...draft.patient_demographics,gender:e.target.value}})}>{['Female','Male','Non-binary','Other'].map(g=><option key={g}>{g}</option>)}</select></label></div><fieldset><legend>Pre-existing conditions</legend><p className="small muted">Leave unchecked if none apply.</p><div className="checkbox-grid">{conditions.map(c=><label className="check-label" key={c}><input type="checkbox" checked={draft.patient_demographics.pre_existing_conditions.includes(c)} onChange={e=>patch({patient_demographics:{...draft.patient_demographics,pre_existing_conditions:e.target.checked?[...draft.patient_demographics.pre_existing_conditions,c]:draft.patient_demographics.pre_existing_conditions.filter(v=>v!==c)}})}/>{c}</label>)}</div></fieldset></>:step===2?<><fieldset><legend>Observed symptoms</legend><div className="symptom-pills">{symptoms.map(s=><label className={`symptom-pill ${draft.symptoms.some(x=>x.name===s)?'selected':''}`} key={s}><input type="checkbox" checked={draft.symptoms.some(x=>x.name===s)} onChange={e=>patch({symptoms:e.target.checked?[...draft.symptoms,{name:s,onset_minutes:30,is_critical:['Acute Hypotension','Arrhythmia','Anaphylaxis','Seizure'].includes(s)}]:draft.symptoms.filter(x=>x.name!==s)})}/>{s}</label>)}</div></fieldset>{draft.symptoms.map((s,i)=><div className="symptom-detail" key={s.name}><strong>{s.name}</strong><label>Onset (minutes)<input required type="number" min="0" max="2880" value={s.onset_minutes} onChange={e=>patch({symptoms:draft.symptoms.map((v,j)=>j===i?{...v,onset_minutes:Number(e.target.value)}:v)})}/></label><label className="check-label"><input type="checkbox" checked={s.is_critical} onChange={e=>patch({symptoms:draft.symptoms.map((v,j)=>j===i?{...v,is_critical:e.target.checked}:v)})}/>Life-threatening symptom</label></div>)}<label>Severity: {draft.severity_score}/5<input type="range" min="1" max="5" value={draft.severity_score} onChange={e=>patch({severity_score:Number(e.target.value)})}/><span className="range-labels"><span>Mild discomfort</span><span>Life-threatening</span></span></label><label>Clinical notes<textarea maxLength={2000} rows={5} value={draft.clinical_notes} onChange={e=>patch({clinical_notes:e.target.value})} placeholder="Describe the reaction, onset, and any treatment given."/></label></>:<><dl className="review-grid"><div><dt>Medicine</dt><dd>{draft.medicine_name}</dd></div><div><dt>Batch</dt><dd>{draft.batch_number}</dd></div><div><dt>Patient</dt><dd>{draft.patient_demographics.age} years · {draft.patient_demographics.gender}</dd></div><div><dt>Severity</dt><dd>{draft.severity_score}/5</dd></div><div><dt>Conditions</dt><dd>{draft.patient_demographics.pre_existing_conditions.join(', ')||'None specified'}</dd></div><div><dt>Symptoms</dt><dd>{draft.symptoms.map(s=>`${s.name} (${s.onset_minutes} min${s.is_critical?', critical':''})`).join('; ')}</dd></div></dl><div className="review-notes"><strong>Clinical notes</strong><p>{draft.clinical_notes||'No notes provided.'}</p></div></>}</div><div className="form-footer"><button type="button" className="secondary" disabled={step===0||submit.isPending} onClick={()=>{setError('');setStep(s=>s-1);}}><ArrowLeft size={17}/>Back</button><span className="small muted">Step {step+1} of 4</span><button className="primary" disabled={submit.isPending}>{step===3?(submit.isPending?'Submitting…':'Submit report'):'Continue'}<ArrowRight size={17}/></button></div></form></Panel></>;
+import { useEffect, useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  ArrowLeft,
+  ArrowRight,
+  CheckCircle2,
+  ClipboardPlus,
+} from "lucide-react";
+import { api } from "../api";
+import { Loading, Notice, PageTitle, Panel } from "../components/ui";
+import type { AdverseReport, Batch, Medicine, Hospital } from "../types";
+const symptoms = [
+  "Severe Dizziness",
+  "Acute Hypotension",
+  "Arrhythmia",
+  "Tachycardia",
+  "Bradycardia",
+  "Paradoxical Bronchospasm",
+  "Dyspnea",
+  "Severe Hypoglycemia",
+  "Anaphylaxis",
+  "Seizure",
+  "Nausea",
+  "Vomiting",
+  "Headache",
+  "Skin Rash",
+  "Facial Edema",
+  "Tremors",
+  "Somnolence",
+];
+const conditions = [
+  "Hypertension",
+  "Type 2 Diabetes",
+  "Coronary Artery Disease",
+  "Asthma",
+  "COPD",
+  "Chronic Kidney Disease",
+  "Neuropathic Pain",
+];
+const initial: AdverseReport = {
+  medicine_id: 0,
+  medicine_name: "",
+  batch_number: "",
+  reporter_type: "HOSPITAL_DOCTOR",
+  hospital_id: null,
+  patient_demographics: {
+    age: 45,
+    gender: "Female",
+    pre_existing_conditions: [],
+  },
+  symptoms: [
+    { name: "Severe Dizziness", onset_minutes: 30, is_critical: false },
+  ],
+  severity_score: 3,
+  clinical_notes: "",
+};
+export default function Reporting() {
+  const [draft, setDraft] = useState<AdverseReport>(initial);
+  const [step, setStep] = useState(0);
+  const [error, setError] = useState("");
+  const cache = useQueryClient();
+  const meds = useQuery({
+    queryKey: ["medicines"],
+    queryFn: () => api<Medicine[]>("/medicines"),
+  });
+  const hospitals = useQuery({
+    queryKey: ["hospitals"],
+    queryFn: () => api<Hospital[]>("/hospitals"),
+  });
+  const batches = useQuery({
+    queryKey: ["batches", draft.medicine_id],
+    queryFn: () =>
+      api<Batch[]>(
+        `/batches?medicine_id=${draft.medicine_id}&only_active=true`,
+      ),
+    enabled: !!draft.medicine_id,
+  });
+  const submit = useMutation({
+    mutationFn: () =>
+      api<{ report_id: string }>("/adverse-reports", {
+        method: "POST",
+        body: JSON.stringify(draft),
+      }),
+    onSuccess: () => {
+      void cache.invalidateQueries({ queryKey: ["overview"] });
+      void cache.invalidateQueries({ queryKey: ["signals"] });
+    },
+  });
+  useEffect(() => {
+    if (meds.data?.length && !draft.medicine_id) {
+      const med = meds.data[0];
+      setDraft((d) => ({
+        ...d,
+        medicine_id: med.medicine_id,
+        medicine_name: med.commercial_name,
+      }));
+    }
+  }, [meds.data, draft.medicine_id]);
+  const patch = (p: Partial<AdverseReport>) =>
+    setDraft((d) => ({ ...d, ...p }));
+  function next() {
+    setError("");
+    if (
+      step === 0 &&
+      (!draft.batch_number ||
+        !batches.data?.some((b) => b.batch_number === draft.batch_number))
+    ) {
+      setError("Choose an active batch for this medicine.");
+      return;
+    }
+    if (step === 2 && !draft.symptoms.length) {
+      setError("Select at least one observed symptom.");
+      return;
+    }
+    setStep((s) => Math.min(3, s + 1));
+  }
+  if (meds.isPending) return <Loading />;
+  if (meds.error) return <Notice>{meds.error.message}</Notice>;
+  if (submit.isSuccess)
+    return (
+      <>
+        <PageTitle
+          title="Report submitted"
+          description="Your observations have been recorded for safety monitoring."
+        />
+        <div className="success-card panel">
+          <CheckCircle2 size={56} />
+          <h2>Thank you for reporting</h2>
+          <p>Keep this tracking ID for your records.</p>
+          <strong className="receipt-id">{submit.data.report_id}</strong>
+          <p>
+            {draft.medicine_name} · {draft.batch_number}
+          </p>
+          <p>
+            Severity {draft.severity_score}/5 · {draft.symptoms.length} observed
+            symptoms
+          </p>
+          <button
+            className="primary"
+            onClick={() => {
+              submit.reset();
+              setDraft(initial);
+              setStep(0);
+            }}
+          >
+            Start another report
+            <ClipboardPlus size={18} />
+          </button>
+        </div>
+      </>
+    );
+  return (
+    <>
+      <PageTitle
+        title="Adverse reports"
+        description="Report a suspected reaction with clear, complete observations."
+      />
+      <div className="stepper">
+        {["Medication", "Patient", "Symptoms", "Review"].map((s, i) => (
+          <div className={`step ${i <= step ? "step-active" : ""}`} key={s}>
+            <span>{i < step ? <CheckCircle2 size={19} /> : i + 1}</span>
+            <strong>{s}</strong>
+          </div>
+        ))}
+      </div>
+      <Panel
+        title={
+          [
+            "Identify the medication",
+            "Patient details",
+            "Describe the reaction",
+            "Review your report",
+          ][step]
+        }
+        description={
+          [
+            "Choose the medicine and its active production batch.",
+            "Record relevant demographics without personal identifiers.",
+            "Add symptoms, onset, and the severity of the reaction.",
+            "Check the details before submitting to the safety team.",
+          ][step]
+        }
+      >
+        {error ? <Notice>{error}</Notice> : null}
+        {submit.error ? <Notice>{submit.error.message}</Notice> : null}
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (step === 3) submit.mutate();
+            else next();
+          }}
+        >
+          <div className="form-content">
+            {step === 0 ? (
+              <div className="form-grid">
+                <label>
+                  Medicine
+                  <select
+                    required
+                    value={draft.medicine_id}
+                    onChange={(e) => {
+                      const m = meds.data!.find(
+                        (m) => m.medicine_id === Number(e.target.value),
+                      )!;
+                      patch({
+                        medicine_id: m.medicine_id,
+                        medicine_name: m.commercial_name,
+                        batch_number: "",
+                      });
+                    }}
+                  >
+                    {meds.data!.map((m) => (
+                      <option value={m.medicine_id} key={m.medicine_id}>
+                        {m.commercial_name} — {m.generic_name} {m.strength}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  Production batch
+                  <select
+                    required
+                    value={draft.batch_number}
+                    onChange={(e) => patch({ batch_number: e.target.value })}
+                  >
+                    <option value="">
+                      {batches.isPending
+                        ? "Loading batches…"
+                        : "Select a batch"}
+                    </option>
+                    {batches.data?.map((b) => (
+                      <option key={b.batch_number}>{b.batch_number}</option>
+                    ))}
+                  </select>
+                  {batches.error ? (
+                    <span className="field-error">{batches.error.message}</span>
+                  ) : null}
+                  {batches.data?.length === 0 ? (
+                    <span className="field-error">
+                      No active batches are available for this medicine.
+                    </span>
+                  ) : null}
+                </label>
+                <label>
+                  Reporter type
+                  <select
+                    value={draft.reporter_type}
+                    onChange={(e) => patch({ reporter_type: e.target.value })}
+                  >
+                    <option value="HOSPITAL_DOCTOR">Hospital doctor</option>
+                    <option value="PATIENT">Patient</option>
+                    <option value="PHARMACIST">Pharmacist</option>
+                  </select>
+                </label>
+                <label>
+                  Reporting hospital (optional)
+                  <select
+                    value={draft.hospital_id ?? ""}
+                    onChange={(e) =>
+                      patch({
+                        hospital_id: e.target.value
+                          ? Number(e.target.value)
+                          : null,
+                      })
+                    }
+                  >
+                    <option value="">Not specified</option>
+                    {hospitals.data?.map((h) => (
+                      <option key={h.hospital_id} value={h.hospital_id}>
+                        {h.hospital_name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+            ) : step === 1 ? (
+              <>
+                <div className="form-grid">
+                  <label>
+                    Age (years)
+                    <input
+                      required
+                      type="number"
+                      min="0"
+                      max="120"
+                      value={draft.patient_demographics.age}
+                      onChange={(e) =>
+                        patch({
+                          patient_demographics: {
+                            ...draft.patient_demographics,
+                            age: Number(e.target.value),
+                          },
+                        })
+                      }
+                    />
+                  </label>
+                  <label>
+                    Gender
+                    <select
+                      value={draft.patient_demographics.gender}
+                      onChange={(e) =>
+                        patch({
+                          patient_demographics: {
+                            ...draft.patient_demographics,
+                            gender: e.target.value,
+                          },
+                        })
+                      }
+                    >
+                      {["Female", "Male", "Non-binary", "Other"].map((g) => (
+                        <option key={g}>{g}</option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+                <fieldset>
+                  <legend>Pre-existing conditions</legend>
+                  <p className="small muted">Leave unchecked if none apply.</p>
+                  <div className="checkbox-grid">
+                    {conditions.map((c) => (
+                      <label className="check-label" key={c}>
+                        <input
+                          type="checkbox"
+                          checked={draft.patient_demographics.pre_existing_conditions.includes(
+                            c,
+                          )}
+                          onChange={(e) =>
+                            patch({
+                              patient_demographics: {
+                                ...draft.patient_demographics,
+                                pre_existing_conditions: e.target.checked
+                                  ? [
+                                      ...draft.patient_demographics
+                                        .pre_existing_conditions,
+                                      c,
+                                    ]
+                                  : draft.patient_demographics.pre_existing_conditions.filter(
+                                      (v) => v !== c,
+                                    ),
+                              },
+                            })
+                          }
+                        />
+                        {c}
+                      </label>
+                    ))}
+                  </div>
+                </fieldset>
+              </>
+            ) : step === 2 ? (
+              <>
+                <fieldset>
+                  <legend>Observed symptoms</legend>
+                  <div className="symptom-pills">
+                    {symptoms.map((s) => (
+                      <label
+                        className={`symptom-pill ${draft.symptoms.some((x) => x.name === s) ? "selected" : ""}`}
+                        key={s}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={draft.symptoms.some((x) => x.name === s)}
+                          onChange={(e) =>
+                            patch({
+                              symptoms: e.target.checked
+                                ? [
+                                    ...draft.symptoms,
+                                    {
+                                      name: s,
+                                      onset_minutes: 30,
+                                      is_critical: [
+                                        "Acute Hypotension",
+                                        "Arrhythmia",
+                                        "Anaphylaxis",
+                                        "Seizure",
+                                      ].includes(s),
+                                    },
+                                  ]
+                                : draft.symptoms.filter((x) => x.name !== s),
+                            })
+                          }
+                        />
+                        {s}
+                      </label>
+                    ))}
+                  </div>
+                </fieldset>
+                {draft.symptoms.map((s, i) => (
+                  <div className="symptom-detail" key={s.name}>
+                    <strong>{s.name}</strong>
+                    <label>
+                      Onset (minutes)
+                      <input
+                        required
+                        type="number"
+                        min="0"
+                        max="2880"
+                        value={s.onset_minutes}
+                        onChange={(e) =>
+                          patch({
+                            symptoms: draft.symptoms.map((v, j) =>
+                              j === i
+                                ? {
+                                    ...v,
+                                    onset_minutes: Number(e.target.value),
+                                  }
+                                : v,
+                            ),
+                          })
+                        }
+                      />
+                    </label>
+                    <label className="check-label">
+                      <input
+                        type="checkbox"
+                        checked={s.is_critical}
+                        onChange={(e) =>
+                          patch({
+                            symptoms: draft.symptoms.map((v, j) =>
+                              j === i
+                                ? { ...v, is_critical: e.target.checked }
+                                : v,
+                            ),
+                          })
+                        }
+                      />
+                      Life-threatening symptom
+                    </label>
+                  </div>
+                ))}
+                <label>
+                  Severity: {draft.severity_score}/5
+                  <input
+                    type="range"
+                    min="1"
+                    max="5"
+                    value={draft.severity_score}
+                    onChange={(e) =>
+                      patch({ severity_score: Number(e.target.value) })
+                    }
+                  />
+                  <span className="range-labels">
+                    <span>Mild discomfort</span>
+                    <span>Life-threatening</span>
+                  </span>
+                </label>
+                <label>
+                  Clinical notes
+                  <textarea
+                    maxLength={2000}
+                    rows={5}
+                    value={draft.clinical_notes}
+                    onChange={(e) => patch({ clinical_notes: e.target.value })}
+                    placeholder="Describe the reaction, onset, and any treatment given."
+                  />
+                </label>
+              </>
+            ) : (
+              <>
+                <dl className="review-grid">
+                  <div>
+                    <dt>Medicine</dt>
+                    <dd>{draft.medicine_name}</dd>
+                  </div>
+                  <div>
+                    <dt>Batch</dt>
+                    <dd>{draft.batch_number}</dd>
+                  </div>
+                  <div>
+                    <dt>Patient</dt>
+                    <dd>
+                      {draft.patient_demographics.age} years ·{" "}
+                      {draft.patient_demographics.gender}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Severity</dt>
+                    <dd>{draft.severity_score}/5</dd>
+                  </div>
+                  <div>
+                    <dt>Conditions</dt>
+                    <dd>
+                      {draft.patient_demographics.pre_existing_conditions.join(
+                        ", ",
+                      ) || "None specified"}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Symptoms</dt>
+                    <dd>
+                      {draft.symptoms
+                        .map(
+                          (s) =>
+                            `${s.name} (${s.onset_minutes} min${s.is_critical ? ", critical" : ""})`,
+                        )
+                        .join("; ")}
+                    </dd>
+                  </div>
+                </dl>
+                <div className="review-notes">
+                  <strong>Clinical notes</strong>
+                  <p>{draft.clinical_notes || "No notes provided."}</p>
+                </div>
+              </>
+            )}
+          </div>
+          <div className="form-footer">
+            <button
+              type="button"
+              className="secondary"
+              disabled={step === 0 || submit.isPending}
+              onClick={() => {
+                setError("");
+                setStep((s) => s - 1);
+              }}
+            >
+              <ArrowLeft size={17} />
+              Back
+            </button>
+            <span className="small muted">Step {step + 1} of 4</span>
+            <button className="primary" disabled={submit.isPending}>
+              {step === 3
+                ? submit.isPending
+                  ? "Submitting…"
+                  : "Submit report"
+                : "Continue"}
+              <ArrowRight size={17} />
+            </button>
+          </div>
+        </form>
+      </Panel>
+    </>
+  );
 }
