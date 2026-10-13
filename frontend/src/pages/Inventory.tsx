@@ -45,15 +45,28 @@ export default function Inventory() {
     void cache.invalidateQueries({ queryKey: ["batches"] });
   };
   const intake = useMutation({
-    mutationFn: () => {
+    mutationFn: (shipment?: File) => {
       const d = new FormData();
-      d.append("file", file!);
+      d.append("file", shipment ?? file!);
       return api<{ count: number }>("/inventory/import", {
         method: "POST",
         body: d,
       });
     },
     onSuccess: invalidate,
+  });
+  const sampleIntake = useMutation({
+    mutationFn: async () => {
+      const response = await fetch("/api/exports/sample.csv", {
+        credentials: "same-origin",
+      });
+      if (!response.ok) throw new Error("Unable to load the sample CSV.");
+      const shipment = new File([await response.blob()], "sample_batches.csv", {
+        type: "text/csv",
+      });
+      setFile(shipment);
+      return intake.mutateAsync(shipment);
+    },
   });
   const dispatch = useMutation({
     mutationFn: (body: object) =>
@@ -68,7 +81,7 @@ export default function Inventory() {
   const filtered = rows.filter(
     (b) =>
       (status === "all" || b.recall_status === status) &&
-      `${b.commercial_name} ${b.batch_number} ${b.manufacturer_name}`
+      `${b.commercial_name} ${b.batch_number} ${b.manufacturer_name} ${b.recall_status}`
         .toLowerCase()
         .includes(search.toLowerCase()),
   );
@@ -263,7 +276,19 @@ export default function Inventory() {
                 <Download size={17} />
                 Download sample CSV
               </button>
+              <button
+                className="secondary"
+                disabled={intake.isPending || sampleIntake.isPending}
+                onClick={() => sampleIntake.mutate()}
+              >
+                <Upload size={17} />
+                {sampleIntake.isPending ? "Importing sample…" : "Import sample CSV"}
+              </button>
             </div>
+            {file ? <p>Selected file: {file.name}</p> : null}
+            {sampleIntake.error && !intake.error ? (
+              <Notice>{sampleIntake.error.message}</Notice>
+            ) : null}
             {intake.error ? <Notice>{intake.error.message}</Notice> : null}
             {intake.isSuccess ? (
               <Notice success>
@@ -272,7 +297,7 @@ export default function Inventory() {
             ) : null}
             <button
               className="primary"
-              disabled={!file || intake.isPending}
+              disabled={!file || intake.isPending || sampleIntake.isPending}
               onClick={() => intake.mutate()}
             >
               <Upload size={18} />
@@ -377,6 +402,7 @@ export default function Inventory() {
               Batch: selected.batch_number,
               Manufacturer: selected.manufacturer_name,
               Formulation: `${selected.generic_name} ${selected.strength}`,
+              "Dosage form": selected.dosage_form,
               "Manufactured on": selected.manufacturing_date,
               "Expires on": selected.expiry_date,
               "Units produced": number(selected.total_units_produced),

@@ -135,6 +135,7 @@ export default function Reporting() {
             Severity {draft.severity_score}/5 · {draft.symptoms.length} observed
             symptoms
           </p>
+          <p>{draft.symptoms.map((symptom) => symptom.name).join(", ")}</p>
           <button
             className="primary"
             onClick={() => {

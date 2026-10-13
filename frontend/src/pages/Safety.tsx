@@ -99,6 +99,7 @@ export default function Safety() {
                     </div>
                   </div>
                   <small>{s.critical_cases} critical cases</small>
+                  <p>Safety alert: <Badge value={s.alert_level} /></p>
                   <details>
                     <summary>Review recommendation</summary>
                     <p>{s.recommendation}</p>
@@ -161,6 +162,10 @@ export default function Safety() {
               <small>
                 Batch {r.batch_number} · Reported {r.reported_at}
               </small>
+              <p>
+                Reporter: {r.reporter_type.replaceAll("_", " ").toLowerCase()} ·
+                Patient age: {r.patient_demographics?.age ?? "Not recorded"}
+              </p>
             </details>
           ))
         ) : search !== null ? (

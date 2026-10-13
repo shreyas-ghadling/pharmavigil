@@ -2,6 +2,7 @@ import { useCallback, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ShieldAlert } from "lucide-react";
 import { api } from "../api";
+import { useAuth } from "../auth";
 import {
   Badge,
   Drawer,
@@ -14,6 +15,7 @@ import {
 } from "../components/ui";
 import type { Batch, Quarantine, Recall } from "../types";
 export default function Recalls() {
+  const { user } = useAuth();
   const [batch, setBatch] = useState("");
   const [reason, setReason] = useState("");
   const [confirm, setConfirm] = useState(false);
@@ -120,7 +122,7 @@ export default function Recalls() {
       </Panel>
       <Panel
         title="Affected hospital stock"
-        description="Recalled units already delivered to partner hospitals."
+        description="Recalled or expired units already delivered to partner hospitals."
       >
         {quarantine.isPending ? (
           <Loading />
@@ -185,7 +187,7 @@ export default function Recalls() {
               },
               {
                 title: "Date",
-                render: (r) => new Date(r.recalled_at).toLocaleDateString(),
+                render: (r) => new Date(r.recalled_at).toLocaleString(),
               },
             ]}
             empty="No recalls have been recorded."
@@ -202,6 +204,8 @@ export default function Recalls() {
               affected hospitals.
             </p>
             <div className="review-notes">
+              <strong>Authorizing officer</strong>
+              <p>{user?.full_name}</p>
               <strong>Reason</strong>
               <p>{reason}</p>
             </div>

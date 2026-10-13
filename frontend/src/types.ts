@@ -48,6 +48,7 @@ export interface Signal {
   critical_cases: number;
   signal_risk_score: number;
   risk_level: string;
+  alert_level: string;
   recommendation: string;
 }
 export interface Recall {
@@ -75,6 +76,11 @@ export interface ClinicalReport {
   clinical_notes: string;
   reported_at: string;
   reporter_type: string;
+  patient_demographics?: {
+    age: number;
+    gender: string;
+    pre_existing_conditions: string[];
+  };
 }
 export interface Overview {
   inventory: Stock[];
