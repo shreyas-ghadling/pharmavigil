@@ -1,75 +1,168 @@
 # Pharmavigil
 
-Medicine inventory and pharmacovigilance workspace, built with React 19, TypeScript, Vite 8, Tailwind CSS 4, Anime.js, and FastAPI. MySQL stores medicines, batches, hospital distribution, users, and recall audits; MongoDB stores adverse reports and supports signal detection and clinical-note search.
+Pharmavigil is a medicine inventory and adverse drug reaction reporting system developed for the Database Concepts for Data Science course. It connects medicine batches, hospital distribution records, patient reports, and batch recalls in one application.
 
-## Workspace
+MySQL stores structured records such as medicines, batches, users, and hospital dispatches. MongoDB stores adverse reaction reports with patient details, symptoms, and clinical notes. The project demonstrates relational queries, transactions, stored procedures, document storage, and aggregation pipelines through a working web application.
 
-- Overview: summaries and shortcuts for the signed-in role.
-- Adverse reports: medication, patient details, symptoms, and review before submission.
-- Inventory: batch search, shipment CSV import, and hospital dispatch.
-- Safety monitoring: risk signals, filters, chart, and clinical search.
-- Recalls: confirmation, affected hospital stock, and audit history.
-- Reports and exports: safety audit PDF and quarantine CSV.
+**Website:** [pharmavigil.vercel.app](https://pharmavigil.vercel.app/)
 
-Doctor/patient accounts can report reactions. Pharmacists manage inventory. Safety officers can access every section. Authentication verifies MySQL password hashes; role permissions and clinical validation are enforced by the API. There is no passwordless demo-login fallback.
+## Features
 
-## Local development (PowerShell)
+- Record adverse reactions with medicine, batch, patient, and symptom details.
+- View medicine stock, import batches from CSV, and record hospital dispatches.
+- Identify safety signals using report frequency and severity.
+- Search clinical notes and review reported symptoms.
+- Recall batches, trace affected hospitals, and maintain a recall audit.
+- Download safety reports as PDF and quarantine records as CSV.
 
-Activate the existing virtual environment and install backend dependencies:
+## User roles
+
+| Role | Access |
+| --- | --- |
+| Doctor / Patient | Submit adverse reaction reports. |
+| Pharmacist | Manage inventory, record dispatches, and download permitted exports. |
+| Safety Officer | Access all sections, review safety signals, and manage recalls. |
+
+The API checks permissions for each request. Accounts are stored in MySQL, passwords are hashed, and signed cookies maintain login sessions.
+
+## Technology stack
+
+| Component | Technology |
+| --- | --- |
+| Frontend | React 19, TypeScript, Vite 8 |
+| Styling | Tailwind CSS 4 |
+| Charts, icons, and animations | Recharts, Lucide React, Anime.js |
+| Backend | Python, FastAPI |
+| Databases | MySQL, MongoDB |
+| Reports | ReportLab, CSV |
+| Hosting | Vercel |
+
+React communicates with FastAPI through `/api` routes. The backend handles authentication, validation, database operations, and report generation. Database credentials are used only by the backend.
+
+## Local setup
+
+### Requirements
+
+- Python 3.14 and Node.js 24, matching the deployment environment.
+- MySQL 8.0 or later.
+- A running MongoDB instance or an Atlas connection.
+- Git and npm.
+
+The commands below use PowerShell.
+
+### 1. Install dependencies
 
 ```powershell
+git clone https://github.com/shreyas-ghadling/pharmavigil.git
+cd pharmavigil
+python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -r requirements.txt
+npm --prefix frontend install
 ```
 
-Configure the backend-only `.env` using `.env.example`. Generate a random session secret:
+### 2. Configure the environment
+
+From the project root:
 
 ```powershell
+Copy-Item .env.example .env
 python -c "import secrets; print(secrets.token_urlsafe(48))"
 ```
 
-Set `SESSION_SECRET` to that value and use `APP_ENV=development` locally. Database secrets must never be placed in frontend environment variables.
+Open `.env`, enter the MySQL and MongoDB connection details, and use the generated value for `SESSION_SECRET`. Keep `APP_ENV=development` for local use. The database names default to `pharmavigil_db`.
 
-Start the API from the project root:
+Keep `.env` private. Do not put database credentials in frontend configuration.
+
+### 3. Prepare the databases
+
+For a new local MySQL database, open the MySQL client from the project root:
+
+```powershell
+mysql -u root -p
+```
+
+Load the schema, stored procedures, and sample records:
+
+```sql
+SOURCE sql_scripts/schema.sql;
+SOURCE sql_scripts/stored_procedures.sql;
+SOURCE sql_scripts/seed_data.sql;
+EXIT;
+```
+
+Create MongoDB indexes and load the sample reports:
+
+```powershell
+python -m app.database.setup_mongo
+python -m app.database.seed_mongo
+```
+
+These setup scripts replace existing tables or reports. Run them only against a new local database. Skip this step when connecting to databases that are already configured.
+
+### 4. Start the application
+
+Start the backend from the project root:
 
 ```powershell
 python -m uvicorn app.api.server:app --reload --host 127.0.0.1 --port 8000
 ```
 
-In a second terminal:
+In a second terminal, start the frontend:
 
 ```powershell
 cd frontend
-npm install
 npm run dev
 ```
 
-Open http://127.0.0.1:5173. Vite proxies `/api` to port 8000. To test the production frontend locally, run `npm run build` and open http://127.0.0.1:8000; FastAPI serves `frontend/dist` and supports SPA deep links.
+Open [localhost:5173](http://127.0.0.1:5173). Vite forwards API requests to the backend on port 8000.
 
-## Verification
+To check the production build locally, run `npm run build` inside `frontend`, keep the backend running, and open [localhost:8000](http://127.0.0.1:8000).
+
+## Testing
+
+Run the backend tests from the project root with the virtual environment active:
 
 ```powershell
 python -m pytest api_tests -q
 python -m pytest tests -q
-cd frontend
-npm run lint
-npm run build
 ```
 
-API contract tests mock database access. Integration tests initialize only `pharmavigil_test` and stop if isolation cannot be established. Never run reset or seeding scripts against hosted data as part of deployment.
+API tests use mocked database access. Integration tests require local MySQL and MongoDB and create a separate `pharmavigil_test` database. They stop if database isolation cannot be established.
+
+Check the frontend:
+
+```powershell
+npm --prefix frontend run lint
+npm --prefix frontend run build
+```
 
 ## Deployment
 
-The existing Vercel project uses `Dockerfile.vercel`: a Node build stage compiles React, then a Python stage serves assets and the same-origin FastAPI API. `vercel.json` sets the backend region to Mumbai (`bom1`). Configure the MySQL and MongoDB variables from `.env.example`, a random `SESSION_SECRET`, `APP_ENV=production`, and `APP_DEBUG=false` in the project's server-side environment. Keep the Container preset and repository-root directory; redeploy after changing environment variables.
+Vercel uses `Dockerfile.vercel` to build React and run FastAPI in one container. The backend serves both the compiled frontend and the API. `vercel.json` sets the backend region to Mumbai (`bom1`).
 
-The Streamlit UI and configuration have been removed. The pre-port Git commit and the user's local backup retain the original version.
+Use the Container preset with the repository root as the root directory. Add the database variables from `.env.example`, a random `SESSION_SECRET`, `APP_ENV=production`, and `APP_DEBUG=false` to Vercel's environment variables. Redeploy after changing them.
 
-## Layout
+Both databases must be running for the full application to work. MySQL is also required for login and account verification.
 
-- `frontend/src`: React pages, shared components, API client, styles, and types.
-- `app/api`: HTTP endpoints and signed-cookie sessions.
-- `app/services`, `app/models`, `app/database`: shared business rules and persistence.
-- `sql_scripts`: schema, stored procedure, and seed data for explicit database setup.
-- `tests`, `api_tests`: database integration and API contract coverage.
+## Project structure
 
-TailAdmin supplied the visual reference. Its MIT attribution is retained in `frontend/TAILADMIN-LICENSE.md`. Project-local skills, design-reference files, install metadata, and local credentials are ignored by Git.
+```text
+app/
+  api/          API routes and authentication
+  database/     Database clients, indexes, and sample data
+  models/       Data models and validation
+  services/     Inventory, safety, recall, and reporting logic
+  utils/        Password utilities and custom exceptions
+frontend/
+  src/          Pages, components, styles, and API client
+sql_scripts/    MySQL schema, stored procedures, and sample data
+data/           Sample CSV files
+api_tests/      API tests
+tests/          Database and validation tests
+scripts/        Local maintenance utilities
+```
+
+## Credits
+
+The interface is based on the TailAdmin dashboard template. Its MIT license is included in [frontend/TAILADMIN-LICENSE.md](frontend/TAILADMIN-LICENSE.md).
