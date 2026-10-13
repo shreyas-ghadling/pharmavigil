@@ -43,3 +43,10 @@ Thumbs.db
 node_modules/
 /design_reference/
 /frontend/dist/
+
+# Archived planning and handoff documents
+/PROJECT_PLAN.md
+/PHARMAVIGIL_PROJECT_GUIDE.md
+/FRONTEND_HANDOFF.md
+/VERCEL_DEPLOYMENT.md
+/dcds_project.pdf

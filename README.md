@@ -60,7 +60,7 @@ API contract tests mock database access. Integration tests initialize only `phar
 
 ## Deployment
 
-The existing Vercel project uses `Dockerfile.vercel`: a Node build stage compiles React, then a Python stage serves assets and the same-origin FastAPI API. See `VERCEL_DEPLOYMENT.md` for environment variables and rollback information.
+The existing Vercel project uses `Dockerfile.vercel`: a Node build stage compiles React, then a Python stage serves assets and the same-origin FastAPI API. `vercel.json` sets the backend region to Mumbai (`bom1`). Configure the MySQL and MongoDB variables from `.env.example`, a random `SESSION_SECRET`, `APP_ENV=production`, and `APP_DEBUG=false` in the project's server-side environment. Keep the Container preset and repository-root directory; redeploy after changing environment variables.
 
 The Streamlit UI and configuration have been removed. The pre-port Git commit and the user's local backup retain the original version.
 
