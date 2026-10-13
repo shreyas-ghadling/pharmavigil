@@ -2,6 +2,8 @@
 
 The existing `pharmavigil` project (Priority AI workspace) hosts React and FastAPI through `Dockerfile.vercel`. Keep the Container preset, repository-root directory, and Node 24 build stage. Do not set a static output directory in project settings: FastAPI serves the compiled SPA and `/api` at the same origin.
 
+`vercel.json` pins the backend to Mumbai (`bom1`), close to the Atlas database. MySQL connections are reused through a lazy five-connection pool per application process. Closing a borrowed connection resets its session and returns it to the pool; transactions still commit or roll back before release. Brief pool contention waits up to ten seconds before returning a database-unavailable response.
+
 ## Backend environment variables
 
 - MYSQL_HOST, MYSQL_PORT, MYSQL_USER, MYSQL_PASSWORD, MYSQL_DATABASE

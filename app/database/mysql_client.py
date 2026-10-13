@@ -4,8 +4,11 @@ Enforces parameterized queries, transaction controls, and custom exception handl
 """
 
 from contextlib import contextmanager
+from threading import Lock
+from time import monotonic, sleep
 from typing import Any, Dict, List, Optional, Tuple
-import mysql.connector
+from mysql.connector.pooling import MySQLConnectionPool
+from mysql.connector.errors import PoolError
 from mysql.connector import Error as MySQLError
 
 from app.config import config
@@ -21,19 +24,42 @@ class MySQLClient:
         self.user = config.mysql.user
         self.password = config.mysql.password
         self.database = config.mysql.database
+        self._pool = None
+        self._pool_settings = None
+        self._pool_lock = Lock()
+
+    def _get_pool(self):
+        # Initialize only on first use. Rebuild when test/setup code changes the DB.
+        settings = (self.host, self.port, self.user, self.password, self.database)
+        with self._pool_lock:
+            if self._pool is None or self._pool_settings != settings:
+                pool = MySQLConnectionPool(
+                    pool_size=5,
+                    pool_reset_session=True,
+                    host=self.host,
+                    port=self.port,
+                    user=self.user,
+                    password=self.password,
+                    database=self.database,
+                    autocommit=False,
+                )
+                self._pool = pool
+                self._pool_settings = settings
+            return self._pool
 
     def get_connection(self):
-        """Creates and returns a raw MySQL database connection."""
+        """Borrows a connection; close() resets it and returns it to the pool."""
         try:
-            conn = mysql.connector.connect(
-                host=self.host,
-                port=self.port,
-                user=self.user,
-                password=self.password,
-                database=self.database,
-                autocommit=False
-            )
-            return conn
+            pool = self._get_pool()
+            deadline = monotonic() + 10
+            while True:
+                try:
+                    return pool.get_connection()
+                except PoolError:
+                    # Brief bursts should wait for a borrower, not fail immediately.
+                    if monotonic() >= deadline:
+                        raise
+                    sleep(0.05)
         except MySQLError as err:
             raise DatabaseConnectionError(
                 f"MySQL Connection Error on {self.host}:{self.port}/{self.database}: {err.msg}",
@@ -44,16 +70,20 @@ class MySQLClient:
     def get_cursor(self, dictionary: bool = True):
         """Context manager providing a transactional cursor with auto-commit/rollback."""
         conn = self.get_connection()
-        cursor = conn.cursor(dictionary=dictionary)
+        cursor = None
         try:
+            cursor = conn.cursor(dictionary=dictionary)
             yield cursor
             conn.commit()
         except Exception as e:
             conn.rollback()
             raise e
         finally:
-            cursor.close()
-            conn.close()
+            try:
+                if cursor is not None:
+                    cursor.close()
+            finally:
+                conn.close()
 
     def execute_query(self, query: str, params: Optional[Tuple[Any, ...]] = None) -> List[Dict[str, Any]]:
         """
@@ -103,8 +133,9 @@ class MySQLClient:
         Returns the output argument tuple.
         """
         conn = self.get_connection()
-        cursor = conn.cursor()
+        cursor = None
         try:
+            cursor = conn.cursor()
             result_args = cursor.callproc(proc_name, args)
             conn.commit()
             return result_args
@@ -112,8 +143,11 @@ class MySQLClient:
             conn.rollback()
             raise RuntimeError(f"Stored procedure execution failed for '{proc_name}': {err.msg}") from err
         finally:
-            cursor.close()
-            conn.close()
+            try:
+                if cursor is not None:
+                    cursor.close()
+            finally:
+                conn.close()
 
 
 # Singleton client instance
