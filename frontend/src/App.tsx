@@ -89,6 +89,17 @@ function Login() {
   const auth = useAuth();
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  async function signIn(username: string, password: string) {
+    setBusy(true);
+    setError("");
+    try {
+      await auth.login(username, password);
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
   return (
     <main className="login-page">
       <section className="login-form">
@@ -107,18 +118,7 @@ function Login() {
             onSubmit={async (e) => {
               e.preventDefault();
               const d = new FormData(e.currentTarget);
-              setBusy(true);
-              setError("");
-              try {
-                await auth.login(
-                  String(d.get("username")),
-                  String(d.get("password")),
-                );
-              } catch (err) {
-                setError((err as Error).message);
-              } finally {
-                setBusy(false);
-              }
+              await signIn(String(d.get("username")), String(d.get("password")));
             }}
           >
             <label>
@@ -149,6 +149,29 @@ function Login() {
             Use your existing Pharmavigil account. Your role determines which
             sections you can access.
           </p>
+          <section className="test-profiles" aria-label="Test profile logins">
+            <h2>Test profiles</h2>
+            <p className="small muted">Choose a profile to try its workspace.</p>
+            <div className="test-profile-list">
+              {[
+                { name: "Doctor / patient", username: "doctor_smith", password: "doctor123", description: "Submit adverse reaction reports", icon: ClipboardPlus },
+                { name: "Pharmacist", username: "pharmacist_jane", password: "pharmacist123", description: "Manage inventory and dispatches", icon: Package },
+                { name: "Safety officer", username: "admin_officer", password: "admin123", description: "Review safety signals and recalls", icon: ShieldAlert },
+              ].map((profile) => (
+                <button
+                  key={profile.username}
+                  type="button"
+                  className="test-profile"
+                  disabled={busy}
+                  onClick={() => void signIn(profile.username, profile.password)}
+                >
+                  <profile.icon size={20} aria-hidden="true" />
+                  <span><strong>{profile.name}</strong><small>{profile.description}</small></span>
+                  <ArrowRight size={16} aria-hidden="true" />
+                </button>
+              ))}
+            </div>
+          </section>
         </div>
         <small className="login-footer">
           Pharmavigil · Medicine inventory & safety monitoring
