@@ -3,6 +3,7 @@ import io
 import os
 import secrets
 import hashlib
+import logging
 from datetime import date
 from pathlib import Path
 from urllib.parse import urlsplit
@@ -26,6 +27,16 @@ from app.utils.auth import verify_password, ALL_ROLES
 from app.utils.exceptions import DatabaseConnectionError, PharmavigilException
 
 app = FastAPI(title="Pharmavigil API", docs_url=None, redoc_url=None)
+logger = logging.getLogger("pharmavigil.api")
+
+
+def log_failure(request, exc):
+    # Record error types/codes, never database URIs, SQL, passwords or clinical data.
+    chain = []
+    while exc is not None and len(chain) < 4:
+        chain.append(f"{type(exc).__name__}(errno={getattr(exc, 'errno', None)})")
+        exc = getattr(exc, "original_exception", None) or exc.__cause__
+    logger.error("Request failed path=%s errors=%s", request.url.path, " -> ".join(chain))
 SESSION_SECONDS = 8 * 3600
 COOKIE = "pv_session"
 ADMIN = "SAFETY_OFFICER_ADMIN"
@@ -79,6 +90,7 @@ async def validation_error(request, exc):
 
 @app.exception_handler(DatabaseConnectionError)
 async def database_error(request, exc):
+    log_failure(request, exc)
     return error(503, "The database is temporarily unavailable. Please try again.")
 
 
@@ -95,6 +107,7 @@ async def input_error(request, exc):
 
 @app.exception_handler(Exception)
 async def unexpected_error(request, exc):
+    log_failure(request, exc)
     return error(503, "The operation is temporarily unavailable. Please try again.")
 
 
