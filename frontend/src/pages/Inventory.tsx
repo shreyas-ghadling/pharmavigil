@@ -16,8 +16,9 @@ import {
 } from "../components/ui";
 import type { Batch, Hospital, Stock } from "../types";
 export default function Inventory() {
-  const [params, setParams] = useSearchParams();
-  const tab = params.get("tab") || "stock";
+  const [params] = useSearchParams();
+  const requestedTab = params.get("tab");
+  const tab = requestedTab === "import" || requestedTab === "dispatch" ? requestedTab : "stock";
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("all");
   const [selected, setSelected] = useState<Stock | null>(null);
@@ -123,26 +124,6 @@ export default function Inventory() {
           detail="Blocked from dispatch"
           icon={<Package />}
         />
-      </div>
-      <div className="tabs" role="tablist" aria-label="Inventory views">
-        {[
-          ["stock", "Stock inventory"],
-          ["import", "Import batches"],
-          ["dispatch", "Dispatch stock"],
-        ].map(([v, l]) => (
-          <button
-            role="tab"
-            aria-selected={tab === v}
-            key={v}
-            className={tab === v ? "active" : ""}
-            onClick={() => {
-              setParams(v === "stock" ? {} : { tab: v });
-              setError("");
-            }}
-          >
-            {l}
-          </button>
-        ))}
       </div>
       {error ? <Notice>{error}</Notice> : null}
       {tab === "stock" ? (

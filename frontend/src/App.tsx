@@ -23,6 +23,7 @@ import {
 import { useAuth } from "./auth";
 import { api } from "./api";
 import { Loading, Notice } from "./components/ui";
+import SidebarNavigation, { type NavigationItem } from "./components/SidebarNavigation";
 import type { Role } from "./types";
 const Overview = lazy(() => import("./pages/Overview"));
 const Reporting = lazy(() => import("./pages/Reporting"));
@@ -31,7 +32,7 @@ const Safety = lazy(() => import("./pages/Safety"));
 const Recalls = lazy(() => import("./pages/Recalls"));
 const Exports = lazy(() => import("./pages/Exports"));
 const admin = "SAFETY_OFFICER_ADMIN";
-const nav = [
+const nav: NavigationItem[] = [
   {
     path: "/",
     name: "Overview",
@@ -49,14 +50,29 @@ const nav = [
     name: "Inventory",
     icon: Package,
     roles: ["PHARMACIST", admin],
+    children: [
+      { name: "Stock inventory", value: "stock" },
+      { name: "Import batches", value: "import" },
+      { name: "Dispatch stock", value: "dispatch" },
+    ],
   },
   {
     path: "/safety",
     name: "Safety monitoring",
     icon: Activity,
     roles: [admin],
+    children: [
+      { name: "Signal detection", value: "signals" },
+      { name: "Clinical search", value: "clinical" },
+    ],
   },
-  { path: "/recalls", name: "Recalls", icon: ShieldAlert, roles: [admin] },
+  {
+    path: "/recalls", name: "Recalls", icon: ShieldAlert, roles: [admin],
+    children: [
+      { name: "Recall management", value: "management" },
+      { name: "Affected hospital stock", value: "stock" },
+    ],
+  },
   {
     path: "/exports",
     name: "Reports & exports",
@@ -196,6 +212,10 @@ export default function App() {
   if (!auth.user) return <Login />;
   const user = auth.user;
   const allowed = nav.filter((n) => n.roles.includes(user.role));
+  const currentSection = allowed.find((item) => item.path === location.pathname);
+  const currentSubsection = currentSection?.children?.find(
+    (child) => child.value === new URLSearchParams(location.search).get("tab"),
+  ) ?? currentSection?.children?.[0];
   return (
     <div className="app-shell">
       <a className="skip-link" href="#main">
@@ -223,22 +243,7 @@ export default function App() {
           <X />
         </button>
         <p className="nav-caption">Workspace</p>
-        <nav aria-label="Main navigation">
-          {allowed.map((n) => (
-            <NavLink
-              key={n.path}
-              to={n.path}
-              end={n.path === "/"}
-              onClick={() => setOpen(false)}
-              className={({ isActive }) =>
-                `nav-item ${isActive ? "nav-active" : ""}`
-              }
-            >
-              <n.icon size={20} />
-              <span>{n.name}</span>
-            </NavLink>
-          ))}
-        </nav>
+        <SidebarNavigation items={allowed} onNavigate={() => setOpen(false)} />
         <div className="sidebar-bottom">
           <div className="system-status">
             <span
@@ -277,9 +282,11 @@ export default function App() {
           <div className="header-breadcrumb">
             Workspace <span>/</span>{" "}
             <strong>
-              {allowed.find((n) => n.path === location.pathname)?.name ??
-                "Pharmavigil"}
+              {currentSection?.name ?? "Pharmavigil"}
             </strong>
+            {currentSubsection ? (
+              <><span>/</span>{" "}{currentSubsection.name}</>
+            ) : null}
           </div>
           <div className="user-menu">
             <div className="avatar">

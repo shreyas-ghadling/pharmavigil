@@ -1,5 +1,6 @@
 import { lazy, Suspense, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useSearchParams } from "react-router-dom";
 import { Activity, Search } from "lucide-react";
 import { api } from "../api";
 import {
@@ -13,6 +14,8 @@ import {
 import type { ClinicalReport, Signal } from "../types";
 const SignalChart = lazy(() => import("../components/SignalChart"));
 export default function Safety() {
+  const [params] = useSearchParams();
+  const clinicalView = params.get("tab") === "clinical";
   const [severity, setSeverity] = useState(3);
   const [frequency, setFrequency] = useState(2);
   const [q, setQ] = useState("");
@@ -23,6 +26,7 @@ export default function Safety() {
       api<Signal[]>(
         `/signals?min_severity=${severity}&min_incidents=${frequency}`,
       ),
+    enabled: !clinicalView,
   });
   const clinical = useQuery({
     queryKey: ["clinical-search", search],
@@ -30,7 +34,7 @@ export default function Safety() {
       api<ClinicalReport[]>(
         `/clinical-search?q=${encodeURIComponent(search ?? "")}`,
       ),
-    enabled: search !== null,
+    enabled: clinicalView && search !== null,
   });
   return (
     <>
@@ -38,7 +42,7 @@ export default function Safety() {
         title="Safety monitoring"
         description="Identify emerging reactions and investigate clinical observations."
       />
-      <Panel
+      {!clinicalView ? <Panel
         title="Signal detection"
         description="Adjust thresholds to focus the safety review."
       >
@@ -121,8 +125,8 @@ export default function Safety() {
             your review.
           </Empty>
         )}
-      </Panel>
-      <Panel
+      </Panel> : null}
+      {clinicalView ? <Panel
         title="Search clinical notes"
         description="Find reports by symptoms or terms in the clinical narrative."
       >
@@ -177,7 +181,7 @@ export default function Safety() {
             Enter a term to search, or leave it empty to review recent reports.
           </div>
         )}
-      </Panel>
+      </Panel> : null}
     </>
   );
 }

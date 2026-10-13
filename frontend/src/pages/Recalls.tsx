@@ -1,5 +1,6 @@
 import { useCallback, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useSearchParams } from "react-router-dom";
 import { ShieldAlert } from "lucide-react";
 import { api } from "../api";
 import { useAuth } from "../auth";
@@ -16,6 +17,8 @@ import {
 import type { Batch, Quarantine, Recall } from "../types";
 export default function Recalls() {
   const { user } = useAuth();
+  const [params] = useSearchParams();
+  const stockView = params.get("tab") === "stock";
   const [batch, setBatch] = useState("");
   const [reason, setReason] = useState("");
   const [confirm, setConfirm] = useState(false);
@@ -24,14 +27,17 @@ export default function Recalls() {
   const batches = useQuery({
     queryKey: ["recall-batches"],
     queryFn: () => api<Batch[]>("/batches"),
+    enabled: !stockView,
   });
   const recalls = useQuery({
     queryKey: ["recalls"],
     queryFn: () => api<Recall[]>("/recalls"),
+    enabled: !stockView,
   });
   const quarantine = useQuery({
     queryKey: ["quarantine"],
     queryFn: () => api<Quarantine[]>("/quarantine"),
+    enabled: stockView,
   });
   const mutation = useMutation({
     mutationFn: () =>
@@ -64,7 +70,7 @@ export default function Recalls() {
         title="Recalls"
         description="Take action on unsafe batches and trace affected hospital stock."
       />
-      <Panel
+      {!stockView ? <Panel
         title="Initiate a batch recall"
         description="Recalling a batch blocks further dispatch and records an audit trail."
       >
@@ -119,8 +125,8 @@ export default function Recalls() {
             Review recall
           </button>
         </form>
-      </Panel>
-      <Panel
+      </Panel> : null}
+      {stockView ? <Panel
         title="Affected hospital stock"
         description="Recalled or expired units already delivered to partner hospitals."
       >
@@ -153,8 +159,8 @@ export default function Recalls() {
             empty="No recalled stock is currently recorded at partner hospitals."
           />
         )}
-      </Panel>
-      <Panel
+      </Panel> : null}
+      {!stockView ? <Panel
         title="Recall history"
         description="A permanent record of recall decisions and their impact."
       >
@@ -193,8 +199,8 @@ export default function Recalls() {
             empty="No recalls have been recorded."
           />
         )}
-      </Panel>
-      {confirm ? (
+      </Panel> : null}
+      {confirm && !stockView ? (
         <Drawer title="Confirm batch recall" onClose={close}>
           <div className="recall-confirm">
             <ShieldAlert size={38} />
