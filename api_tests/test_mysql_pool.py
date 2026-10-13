@@ -19,6 +19,7 @@ def test_pool_is_lazy_shared_and_resets_sessions(monkeypatch):
         connections = list(executor.map(lambda _: client.get_connection(), range(16)))
     factory.assert_called_once()
     assert factory.call_args.kwargs["pool_size"] == 5
+    assert factory.call_args.kwargs["pool_name"] == "pharmavigil"
     assert factory.call_args.kwargs["pool_reset_session"] is True
     assert factory.call_args.kwargs["autocommit"] is False
     assert len(connections) == 16

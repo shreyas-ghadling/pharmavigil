@@ -34,6 +34,7 @@ class MySQLClient:
         with self._pool_lock:
             if self._pool is None or self._pool_settings != settings:
                 pool = MySQLConnectionPool(
+                    pool_name="pharmavigil",
                     pool_size=5,
                     pool_reset_session=True,
                     host=self.host,
