@@ -85,7 +85,7 @@ export function Panel({
 export function Badge({ value }: { value: string }) {
   return (
     <span
-      className={`badge ${["RECALLED", "CRITICAL", "EXPIRED"].includes(value) ? "badge-red" : ["HIGH", "UNDER_INVESTIGATION", "EXPIRING_SOON"].includes(value) ? "badge-amber" : "badge-green"}`}
+      className={`badge ${["RECALLED", "CRITICAL", "EXPIRED"].includes(value) ? "badge-red" : ["HIGH", "WARNING", "UNDER_INVESTIGATION", "EXPIRING_SOON"].includes(value) ? "badge-amber" : "badge-green"}`}
     >
       {label(value)}
     </span>
