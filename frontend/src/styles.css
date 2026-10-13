@@ -167,14 +167,16 @@ small,
 }
 .nav-chevron {
   margin-left: auto;
-  transition: transform 0.15s;
+  display: inline-flex;
+  align-items: center;
 }
-.nav-chevron-open {
-  transform: rotate(180deg);
+.nav-dropdown {
+  height: 0;
+  overflow: hidden;
 }
 .nav-children {
   list-style: none;
-  margin: 5px 0 5px 24px;
+  margin: 0 0 0 24px;
   padding: 0 0 0 18px;
   border-left: 1px solid var(--border);
 }
