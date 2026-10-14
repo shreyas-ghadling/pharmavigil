@@ -12,7 +12,7 @@ The application connects two parts of medicine safety: where a medicine batch ha
 
 Doctors and patients can submit a report through a guided form. Each report includes the medicine and batch, patient age and gender, existing conditions, observed symptoms, symptom onset, severity, and clinical notes. Users review their entries before submitting and receive a report ID after submission.
 
-The backend checks that the batch exists and belongs to the selected medicine. It also validates patient details, symptoms, and severity scores before saving the report in MongoDB.
+Reports can include active, expired, recalled, or investigated batches. If the batch number is unknown, users can record that explicitly. When a batch is supplied, the backend checks that it exists and belongs to the selected medicine. It also validates patient details, symptoms, and severity scores before saving the report in MongoDB.
 
 ### Medicine inventory and hospital distribution
 

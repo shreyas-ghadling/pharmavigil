@@ -23,26 +23,35 @@ class MongoService:
         validated = AdverseReportCreate(**report_payload)
         doc = validated.model_dump()
 
-        # 2. Server-Side Verification: Batch must exist in MySQL and belong to chosen medicine (Fail Closed)
+        # 2. Verify medicine, and a batch when supplied. Unknown batches remain null.
         from app.services.sql_service import sql_service
         from app.utils.exceptions import BatchMedicineMismatchError, DatabaseConnectionError
 
         try:
-            batch_info = sql_service.get_batch_by_number(doc["batch_number"])
+            if doc["batch_number"] is None:
+                medicines = sql_service.get_all_medicines()
+                batch_info = None
+            else:
+                batch_info = sql_service.get_batch_by_number(doc["batch_number"])
         except Exception as err:
             raise DatabaseConnectionError(
                 f"Relational verification failed: MySQL database is unreachable. Cannot verify batch '{doc['batch_number']}'.",
                 original_exception=err
             ) from err
 
-        if not batch_info:
+        if doc["batch_number"] is None:
+            medicine = next((m for m in medicines if m["medicine_id"] == doc["medicine_id"]), None)
+            if not medicine:
+                raise ValueError("Choose a registered medicine.")
+            doc["medicine_name"] = medicine["commercial_name"]
+        elif not batch_info:
             raise BatchMedicineMismatchError(
                 batch_number=doc["batch_number"],
                 medicine_id=doc["medicine_id"],
                 message=f"Validation Error: Batch '{doc['batch_number']}' does not exist in the database."
             )
 
-        if batch_info["medicine_id"] != doc["medicine_id"]:
+        if batch_info and batch_info["medicine_id"] != doc["medicine_id"]:
             raise BatchMedicineMismatchError(
                 batch_number=doc["batch_number"],
                 medicine_id=doc["medicine_id"],

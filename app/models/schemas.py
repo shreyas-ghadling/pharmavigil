@@ -30,7 +30,7 @@ class AdverseReportCreate(BaseModel):
     Enforces strict input boundary validation for patient safety reporting.
     """
     report_id: Optional[str] = Field(default=None, description="Unique tracking identifier")
-    batch_number: str = Field(..., description="Batch number format (e.g., BCH-PCM-9042)")
+    batch_number: Optional[str] = Field(..., description="Known batch number, or null when the reporter does not know it")
     medicine_id: int = Field(..., gt=0, description="Referenced Medicine ID")
     medicine_name: str = Field(..., min_length=2, max_length=150, description="Commercial medicine name")
     reporter_type: Literal["HOSPITAL_DOCTOR", "PATIENT", "PHARMACIST"] = Field(
@@ -46,7 +46,9 @@ class AdverseReportCreate(BaseModel):
 
     @field_validator("batch_number")
     @classmethod
-    def validate_batch_number_format(cls, v: str) -> str:
+    def validate_batch_number_format(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return v
         pattern = r"^BCH-[A-Z0-9-]+$"
         if not re.match(pattern, v):
             raise ValueError(f"Invalid batch number format '{v}'. Must match pattern 'BCH-XXX-XXXX'.")

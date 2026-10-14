@@ -164,7 +164,7 @@ export default function Safety() {
               </summary>
               <p>{r.clinical_notes || "No clinical notes provided."}</p>
               <small>
-                Batch {r.batch_number} · Reported {r.reported_at}
+                Batch {r.batch_number ?? "unknown"} · Reported {r.reported_at}
               </small>
               <p>
                 Reporter: {r.reporter_type.replaceAll("_", " ").toLowerCase()} ·

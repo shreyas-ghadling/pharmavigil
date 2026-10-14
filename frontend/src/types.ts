@@ -70,7 +70,7 @@ export interface Quarantine {
 }
 export interface ClinicalReport {
   report_id: string;
-  batch_number: string;
+  batch_number: string | null;
   medicine_name: string;
   severity_score: number;
   clinical_notes: string;
@@ -96,7 +96,7 @@ export interface Symptom {
 export interface AdverseReport {
   medicine_id: number;
   medicine_name: string;
-  batch_number: string;
+  batch_number: string | null;
   reporter_type: string;
   hospital_id: number | null;
   patient_demographics: {
