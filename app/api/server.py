@@ -221,7 +221,7 @@ def inventory(user=Depends(access(ADMIN, PHARMACIST))):
 
 
 @app.post("/api/adverse-reports", status_code=201)
-def adverse_report(payload: AdverseReportCreate, user=Depends(access(ADMIN, DOCTOR))):
+def adverse_report(payload: AdverseReportCreate, user=Depends(access(ADMIN, DOCTOR, PHARMACIST))):
     data = payload.model_dump()
     med = next((m for m in sql_service.get_all_medicines() if m["medicine_id"] == payload.medicine_id), None)
     if not med:

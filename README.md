@@ -49,7 +49,7 @@ Safety officers can download a PDF safety audit and a CSV quarantine manifest. T
 | Role | Main responsibilities |
 | --- | --- |
 | Doctor / Patient | Submit suspected adverse reaction reports. |
-| Pharmacist | Review inventory, import batches, and record hospital dispatches. |
+| Pharmacist | Submit suspected reaction reports, review inventory, import batches, and record hospital dispatches. |
 | Safety Officer | Review safety signals, search reports, manage recalls, and download audit reports. |
 
 Accounts are stored in MySQL with hashed passwords. Signed cookies maintain login sessions, and the backend checks role permissions before allowing an operation.

@@ -43,7 +43,7 @@ const nav: NavigationItem[] = [
     path: "/adverse-reports",
     name: "Adverse reports",
     icon: ClipboardPlus,
-    roles: ["DOCTOR_PATIENT", admin],
+    roles: ["DOCTOR_PATIENT", "PHARMACIST", admin],
   },
   {
     path: "/inventory",

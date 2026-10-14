@@ -265,11 +265,10 @@ class TestDomainOOPModels:
         with pytest.raises(UnauthorizedAccessError):
             verify_portal_access(ROLE_DOCTOR_PATIENT, PORTAL_ADMIN)
 
-        # 2. Pharmacist role: can ONLY access Pharmacist portal
-        assert get_allowed_portals(ROLE_PHARMACIST) == [PORTAL_PHARMACIST]
+        # Pharmacists can report reactions and manage inventory, but not administer safety reviews.
+        assert get_allowed_portals(ROLE_PHARMACIST) == [PORTAL_DOCTOR, PORTAL_PHARMACIST]
         assert verify_portal_access(ROLE_PHARMACIST, PORTAL_PHARMACIST) is True
-        with pytest.raises(UnauthorizedAccessError):
-            verify_portal_access(ROLE_PHARMACIST, PORTAL_DOCTOR)
+        assert verify_portal_access(ROLE_PHARMACIST, PORTAL_DOCTOR) is True
         with pytest.raises(UnauthorizedAccessError):
             verify_portal_access(ROLE_PHARMACIST, PORTAL_ADMIN)
 
