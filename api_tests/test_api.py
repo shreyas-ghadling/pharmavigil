@@ -163,3 +163,13 @@ def test_serious_outcomes_are_independent_of_intensity(client, monkeypatch, crit
     assert response.status_code == 201
     assert recorded[0]["seriousness_criteria"] == criteria
     assert recorded[0]["severity_score"] == 1
+
+
+def test_report_submitter_is_authenticated_not_client_supplied(client, monkeypatch):
+    recorded = []
+    monkeypatch.setattr(server.sql_service, "get_all_medicines", lambda: [{"medicine_id": 101, "commercial_name": "Cardiomax"}])
+    monkeypatch.setattr(server.mongo_service, "insert_adverse_report", lambda data: recorded.append(data) or "ADR-TEST")
+    payload = {**reporting_payload(), "submitted_by": {"user_id": 999, "username": "spoof", "full_name": "Spoof", "role": "ADMIN"}}
+    response = client.post("/api/adverse-reports", headers=sign_in(client, "doctor"), json=payload)
+    assert response.status_code == 201
+    assert recorded[0]["submitted_by"] == {"user_id": 2, "username": "doctor", "full_name": "Doctor", "role": server.DOCTOR}

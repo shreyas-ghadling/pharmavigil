@@ -77,6 +77,7 @@ export interface ClinicalReport {
   reported_at: string;
   reporter_type: string;
   seriousness_criteria?: string[] | null;
+  submitted_by?: { user_id: number; username: string; full_name: string; role: string } | null;
   patient_demographics?: {
     age: number;
     gender: string;

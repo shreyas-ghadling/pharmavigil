@@ -167,9 +167,10 @@ export default function Safety() {
                 Batch {r.batch_number ?? "unknown"} · Reported {r.reported_at}
               </small>
               <p>
-                Reporter: {r.reporter_type.replaceAll("_", " ").toLowerCase()} ·
+                Declared reporting source: {r.reporter_type.replaceAll("_", " ").toLowerCase()} ·
                 Patient age: {r.patient_demographics?.age ?? "Not recorded"}
               </p>
+              <p>Submitted by: {r.submitted_by ? `${r.submitted_by.full_name} (${r.submitted_by.username})` : "Not recorded in this older report"}</p>
               <p>Serious outcomes: {r.seriousness_criteria == null ? "Not recorded or unknown"
                 : r.seriousness_criteria.length ? r.seriousness_criteria.map((c) => c.replaceAll("_", " ").toLowerCase()).join(", ")
                 : "None reported"}</p>

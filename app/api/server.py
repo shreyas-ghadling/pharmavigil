@@ -227,6 +227,7 @@ def adverse_report(payload: AdverseReportCreate, user=Depends(access(ADMIN, DOCT
     if not med:
         raise HTTPException(422, "Choose a registered medicine.")
     data["medicine_name"] = med["commercial_name"]
+    data["submitted_by"] = {key: user[key] for key in ("user_id", "username", "full_name", "role")}
     return {"report_id": mongo_service.insert_adverse_report(data)}
 
 

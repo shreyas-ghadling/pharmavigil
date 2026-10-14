@@ -24,6 +24,14 @@ class PatientDemographicsSchema(BaseModel):
     pre_existing_conditions: List[str] = Field(default_factory=list, description="List of pre-existing comorbidities")
 
 
+class ReportSubmitterSchema(BaseModel):
+    """Authenticated sender, distinct from the declared reporting source."""
+    user_id: int = Field(gt=0)
+    username: str
+    full_name: str
+    role: str
+
+
 class AdverseReportCreate(BaseModel):
     """
     Schema for creating adverse drug reaction reports.
@@ -46,6 +54,7 @@ class AdverseReportCreate(BaseModel):
     hospital_id: Optional[int] = Field(default=None, gt=0, description="Reporting hospital identifier")
     clinical_notes: Optional[str] = Field(default="", max_length=2000, description="Doctor observations or patient notes")
     reported_at: Optional[str] = Field(default=None, description="ISO timestamp of submission")
+    submitted_by: Optional[ReportSubmitterSchema] = None
 
     @field_validator("batch_number")
     @classmethod

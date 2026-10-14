@@ -7,6 +7,7 @@ import {
   ClipboardPlus,
 } from "lucide-react";
 import { api } from "../api";
+import { useAuth } from "../auth";
 import { Loading, Notice, PageTitle, Panel } from "../components/ui";
 import type { AdverseReport, Batch, Medicine, Hospital } from "../types";
 const symptoms = [
@@ -71,6 +72,7 @@ const initial: ReportDraft = {
   clinical_notes: "",
 };
 export default function Reporting() {
+  const { user } = useAuth();
   const [draft, setDraft] = useState<ReportDraft>(initial);
   const [step, setStep] = useState(0);
   const [error, setError] = useState("");
@@ -311,7 +313,7 @@ export default function Reporting() {
                 <p className="small muted">Expired and recalled batches can also be reported.</p>
                 </div>
                 <label>
-                  Reporter type
+                  Reporting source
                   <select
                     required
                     value={draft.reporter_type}
@@ -598,6 +600,8 @@ export default function Reporting() {
                   </div>
                 </dl>
                 <div className="review-notes">
+                  <strong>Submitting account</strong>
+                  <p>{user?.full_name} ({user?.username}). This account will be recorded with the report.</p>
                   <strong>Clinical notes</strong>
                   <p>{draft.clinical_notes || "No notes provided."}</p>
                 </div>
