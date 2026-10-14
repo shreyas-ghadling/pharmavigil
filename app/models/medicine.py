@@ -158,8 +158,17 @@ class SafetyAuditor:
     and automated regulatory recall recommendations.
     """
 
-    CRITICAL_SCORE_THRESHOLD = 8.0
-    HIGH_INCIDENT_THRESHOLD = 3
+    CRITICAL_SCORE_THRESHOLD = 12.0
+    HIGH_SCORE_THRESHOLD = 6.0
+
+    @classmethod
+    def classify_priority(cls, score: float) -> str:
+        """One project rule set for review priority, not clinical risk."""
+        if score >= cls.CRITICAL_SCORE_THRESHOLD:
+            return "CRITICAL"
+        if score >= cls.HIGH_SCORE_THRESHOLD:
+            return "HIGH"
+        return "MODERATE"
 
     @staticmethod
     def calculate_signal_risk_score(incident_count: int, avg_severity: float) -> float:
@@ -181,23 +190,19 @@ class SafetyAuditor:
         """
         risk_score = cls.calculate_signal_risk_score(incident_count, avg_severity)
         
-        is_critical_alarm = (risk_score >= cls.CRITICAL_SCORE_THRESHOLD) or (critical_cases >= 2)
-        is_moderate_alarm = (incident_count >= cls.HIGH_INCIDENT_THRESHOLD) or (avg_severity >= 3.5)
+        level = cls.classify_priority(risk_score)
 
-        if is_critical_alarm:
-            level = "CRITICAL"
+        if level == "CRITICAL":
             recommendation = (
                 f"IMMEDIATE ACTION REQUIRED: High pharmacovigilance signal detected for {medicine_name} "
                 f"({symptom}). Trigger emergency batch recall and initiate distribution quarantine."
             )
-        elif is_moderate_alarm:
-            level = "WARNING"
+        elif level == "HIGH":
             recommendation = (
                 f"SAFETY ADVISORY: Elevated symptom frequency for {medicine_name} ({symptom}). "
                 f"Flag batch for clinical review and monitor patient intake."
             )
         else:
-            level = "NOMINAL"
             recommendation = "Standard baseline surveillance; within acceptable tolerance levels."
 
         return {

@@ -130,27 +130,7 @@ class MongoService:
                     }
                 }
             },
-            # Stage 6: Classify risk_level (CRITICAL / HIGH / MODERATE) from risk score thresholds
-            {
-                "$addFields": {
-                    "risk_level": {
-                        "$switch": {
-                            "branches": [
-                                {
-                                    "case": {"$gte": ["$signal_risk_score", 12.0]},
-                                    "then": "CRITICAL"
-                                },
-                                {
-                                    "case": {"$gte": ["$signal_risk_score", 6.0]},
-                                    "then": "HIGH"
-                                }
-                            ],
-                            "default": "MODERATE"
-                        }
-                    }
-                }
-            },
-            # Stage 7: Rank by calculated safety risk
+            # Rank scores; classification is applied by the shared domain rule.
             {
                 "$sort": {"signal_risk_score": -1}
             }
@@ -169,6 +149,7 @@ class MongoService:
                 critical_cases=row["critical_cases"]
             )
             row["alert_level"] = eval_data["alert_level"]
+            row["risk_level"] = eval_data["alert_level"]
             row["recommendation"] = eval_data["recommendation"]
 
         return results
