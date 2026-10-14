@@ -128,7 +128,7 @@ export default function Recalls() {
       </Panel> : null}
       {stockView ? <Panel
         title="Affected hospital deliveries"
-        description="Historical deliveries of affected batches. These quantities are not verified remaining hospital stock."
+        description="Historical deliveries of recalled or expired batches. These quantities are not verified remaining hospital stock."
       >
         {quarantine.isPending ? (
           <Loading />
@@ -150,6 +150,7 @@ export default function Recalls() {
               },
               { title: "Medicine", render: (q) => q.commercial_name },
               { title: "Batch", render: (q) => q.batch_number },
+              { title: "Reason flagged", render: (q) => <Badge value={q.affected_reason} /> },
               {
                 title: "Historically delivered",
                 render: (q) => `${number(q.historically_distributed_units)} ${q.stock_unit}s`,

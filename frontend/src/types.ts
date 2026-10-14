@@ -84,6 +84,7 @@ export interface Quarantine {
   batch_number: string;
   total_quarantine_units: number;
   historically_distributed_units: number;
+  affected_reason: "RECALLED" | "EXPIRED";
   stock_unit: string;
 }
 export interface ClinicalReport {

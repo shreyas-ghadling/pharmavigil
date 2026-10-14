@@ -296,9 +296,10 @@ class SQLService:
         """
         query = """
             WITH FlaggedBatches AS (
-                SELECT batch_number, medicine_id, expiry_date
+                SELECT batch_number, medicine_id, expiry_date,
+                       CASE WHEN recall_status='RECALLED' THEN 'RECALLED' ELSE 'EXPIRED' END AS affected_reason
                 FROM batches
-                WHERE recall_status = 'RECALLED'
+                WHERE recall_status = 'RECALLED' OR recall_status = 'EXPIRED' OR expiry_date < CURDATE()
             )
             SELECT 
                 h.hospital_name,
@@ -308,13 +309,14 @@ class SQLService:
                 m.commercial_name,
                 m.stock_unit,
                 fb.batch_number,
+                fb.affected_reason,
                 SUM(bd.quantity_delivered) AS total_quarantine_units,
                 SUM(bd.quantity_delivered) AS historically_distributed_units
             FROM FlaggedBatches fb
             JOIN batch_distribution bd ON fb.batch_number = bd.batch_number
             JOIN hospitals h ON bd.hospital_id = h.hospital_id
             JOIN medicines m ON fb.medicine_id = m.medicine_id
-            GROUP BY h.hospital_id, h.hospital_name, h.city, h.contact_phone, m.commercial_name, m.stock_unit, fb.batch_number
+            GROUP BY h.hospital_id, h.hospital_name, h.city, h.contact_phone, m.commercial_name, m.stock_unit, fb.batch_number, fb.affected_reason
             HAVING SUM(bd.quantity_delivered) > 0
             ORDER BY total_quarantine_units DESC;
         """
