@@ -1,6 +1,7 @@
 import { useEffect, useRef, type ReactNode } from "react";
 import { animate } from "animejs";
 import { AlertCircle, X, LoaderCircle, Inbox } from "lucide-react";
+import { useReveal } from "../hooks/useReveal";
 export const number = (v: number) => new Intl.NumberFormat("en-IN").format(v);
 export const label = (v: string) =>
   v
@@ -14,8 +15,10 @@ export function Notice({
   children: ReactNode;
   success?: boolean;
 }) {
+  const ref = useReveal<HTMLDivElement>(typeof children === "string" ? children : "", undefined, 4);
   return (
     <div
+      ref={ref}
       role={success ? "status" : "alert"}
       className={`notice ${success ? "notice-success" : ""}`}
     >
@@ -69,8 +72,9 @@ export function Panel({
   children: ReactNode;
   action?: ReactNode;
 }) {
+  const ref = useReveal<HTMLElement>(title);
   return (
-    <section className="panel">
+    <section ref={ref} className="panel">
       <div className="panel-heading">
         <div>
           <h2>{title}</h2>
@@ -132,6 +136,7 @@ export function Table<T>({
   rowKey: (row: T) => string;
   empty?: string;
 }) {
+  const ref = useReveal<HTMLTableSectionElement>(rows.map(rowKey).join("|"), ":scope > tr", 0);
   return rows.length ? (
     <div className="table-wrap">
       <table>
@@ -142,7 +147,7 @@ export function Table<T>({
             ))}
           </tr>
         </thead>
-        <tbody>
+        <tbody ref={ref}>
           {rows.map((row) => (
             <tr key={rowKey(row)}>
               {columns.map((c) => (

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Download, FileText, Table2 } from "lucide-react";
 import { download } from "../api";
 import { Notice, PageTitle } from "../components/ui";
+import AnimatedGroup from "../components/AnimatedGroup";
 export default function Exports() {
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
@@ -32,7 +33,7 @@ export default function Exports() {
       />
       {error ? <Notice>{error}</Notice> : null}
       {success ? <Notice success>{success}</Notice> : null}
-      <div className="export-grid">
+      <AnimatedGroup className="export-grid">
         {[
           {
             kind: "pdf",
@@ -72,7 +73,7 @@ export default function Exports() {
             </button>
           </section>
         ))}
-      </div>
+      </AnimatedGroup>
       <p className="small muted">
         Downloads reflect the data available at the time of generation.
         CSV record_type identifies each row. Batch totals appear only on recall initiation rows.

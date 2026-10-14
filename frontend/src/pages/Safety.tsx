@@ -3,6 +3,8 @@ import { useQuery } from "@tanstack/react-query";
 import { Link, useSearchParams } from "react-router-dom";
 import CaseReviews from "../components/CaseReviews";
 import PatternReview from "../components/PatternReview";
+import AnimatedDisclosure from "../components/AnimatedDisclosure";
+import AnimatedGroup from "../components/AnimatedGroup";
 import { Activity, Search } from "lucide-react";
 import { api } from "../api";
 import {
@@ -54,7 +56,7 @@ export default function Safety() {
       >
         <p><Link className="text-link" to="/safety?tab=cases">Review individual serious reports and legacy flags</Link> independently of these pattern filters.</p>
         <p className="small muted">Priority score = report entries × average intensity. This project heuristic does not estimate incidence, probability of harm, or establish causality. Review priorities use project thresholds: 12 or above for urgent review, 6 or above for prioritized review, otherwise routine review.</p>
-        <div className="filter-grid">
+        <AnimatedGroup className="filter-grid">
           <label>Reporting window<select value={days} onChange={(e) => setDays(Number(e.target.value))}><option value={0}>All available history</option><option value={30}>Last 30 days</option><option value={90}>Last 90 days</option><option value={365}>Last 365 days</option></select></label>
           <label>
             Minimum average intensity: {severity}/5
@@ -77,7 +79,7 @@ export default function Safety() {
               onChange={(e) => setFrequency(Number(e.target.value))}
             />
           </label>
-        </div>
+        </AnimatedGroup>
         <p className="small muted">Counts and averages include all reports in the selected window. Dated windows compare with the preceding period of equal length. All-history results describe accumulated reports, not an emerging trend. Filters select completed groups without removing lower-intensity reports.</p>
         {signals.isPending ? (
           <Loading />
@@ -85,7 +87,7 @@ export default function Safety() {
           <Notice>{signals.error.message}</Notice>
         ) : signals.data.length ? (
           <>
-            <div className="signal-grid">
+            <AnimatedGroup className="signal-grid" animationKey={`${severity}:${frequency}:${days}`}>
               {signals.data.map((s) => (
                 <article
                   className="signal-card"
@@ -119,14 +121,13 @@ export default function Safety() {
                   <small>{s.reported_serious_cases} entries with reported serious outcomes</small>
                   {s.seriousness_unknown_entries ? <p className="small muted">Seriousness is unknown or unrecorded in {s.seriousness_unknown_entries} entries.</p> : null}
                   {s.critical_cases ? <p className="small muted">{s.critical_cases} legacy symptom flags; seriousness was not established by these flags.</p> : null}
-                  <details>
-                    <summary>Review recommendation</summary>
+                  <AnimatedDisclosure summary="Review recommendation">
                     <p>{s.recommendation}</p>
-                  </details>
+                  </AnimatedDisclosure>
                   <PatternReview signal={s} days={days} />
                 </article>
               ))}
-            </div>
+            </AnimatedGroup>
             <div className="chart-heading">
               <h3>Review priority score by medicine and symptom</h3>
               <p>Scores rank reported patterns for investigation.</p>
@@ -171,14 +172,13 @@ export default function Safety() {
         ) : clinical.error ? (
           <Notice>{clinical.error.message}</Notice>
         ) : clinical.data?.items.length ? (
-          clinical.data.items.map((r) => (
-            <details className="clinical-result" key={r.report_id}>
-              <summary>
+          <AnimatedGroup animationKey={`${search}:${page}`}>{clinical.data.items.map((r) => (
+            <AnimatedDisclosure className="clinical-result" key={r.report_id} summary={<>
                 <strong>{r.medicine_name}</strong>
                 <span>
                   {r.report_id} · Intensity {r.severity_score}/5
                 </span>
-              </summary>
+              </>}>
               <p>{r.clinical_notes || "No clinical notes provided."}</p>
               <small>
                 Batch {r.batch_number ?? "unknown"} · Reported {r.reported_at}
@@ -191,8 +191,8 @@ export default function Safety() {
               <p>Serious outcomes: {r.seriousness_criteria == null ? "Not recorded or unknown"
                 : r.seriousness_criteria.length ? r.seriousness_criteria.map((c) => c.replaceAll("_", " ").toLowerCase()).join(", ")
                 : "None reported"}</p>
-            </details>
-          ))
+            </AnimatedDisclosure>
+          ))}</AnimatedGroup>
         ) : search !== null ? (
           <Empty>
             No reports match your search. Try a different symptom or keyword.
@@ -202,11 +202,11 @@ export default function Safety() {
             Enter a term to search, or leave it empty to review recent reports.
           </div>
         )}
-        {clinical.data && !clinical.isFetching && !clinical.error ? <div className="button-row">
+        {clinical.data && !clinical.isFetching && !clinical.error ? <AnimatedGroup className="button-row" animationKey={`${search}:${page}`}>
           <button className="secondary" disabled={page === 1} onClick={() => setPage((p) => p - 1)}>Previous</button>
           <span>Page {page} · {clinical.data.total} matching reports</span>
           <button className="secondary" disabled={page * clinical.data.page_size >= clinical.data.total} onClick={() => setPage((p) => p + 1)}>Next</button>
-        </div> : null}
+        </AnimatedGroup> : null}
       </Panel> : null}
     </>
   );

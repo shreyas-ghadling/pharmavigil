@@ -1567,6 +1567,9 @@ legend {
   .workspace-footer span {
     display: none;
   }
+  .disclosure-body {
+    display: flow-root;
+  }
   .clinical-result {
     margin: 0 18px;
   }
