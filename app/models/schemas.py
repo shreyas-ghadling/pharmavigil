@@ -55,6 +55,21 @@ class AdverseReportCreate(BaseModel):
     clinical_notes: Optional[str] = Field(default="", max_length=2000, description="Doctor observations or patient notes")
     reported_at: Optional[str] = Field(default=None, description="ISO timestamp of submission")
     submitted_by: Optional[ReportSubmitterSchema] = None
+    case_reference: Optional[str] = Field(default=None, min_length=2, max_length=80)
+    submission_key: Optional[str] = None
+    case_key: Optional[str] = None
+
+    @field_validator("symptoms")
+    @classmethod
+    def distinct_symptoms(cls, symptoms):
+        seen = set()
+        for symptom in symptoms:
+            symptom.name = " ".join(symptom.name.split())
+            key = symptom.name.casefold()
+            if len(key) < 2 or key in seen:
+                raise ValueError("List each observed symptom once, with a meaningful name.")
+            seen.add(key)
+        return symptoms
 
     @field_validator("batch_number")
     @classmethod

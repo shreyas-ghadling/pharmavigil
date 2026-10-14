@@ -81,6 +81,8 @@ export default function Reporting() {
   const [symptomName, setSymptomName] = useState("");
   const [conditionName, setConditionName] = useState("");
   const [seriousnessChoice, setSeriousnessChoice] = useState("");
+  const [submissionKey, setSubmissionKey] = useState(() => crypto.randomUUID());
+  const [caseReference, setCaseReference] = useState("");
   const cache = useQueryClient();
   const meds = useQuery({
     queryKey: ["medicines"],
@@ -102,7 +104,8 @@ export default function Reporting() {
     mutationFn: () =>
       api<{ report_id: string }>("/adverse-reports", {
         method: "POST",
-        body: JSON.stringify(draft),
+        headers: { "Idempotency-Key": submissionKey },
+        body: JSON.stringify({ ...draft, case_reference: caseReference.trim() || null }),
       }),
     onSuccess: () => {
       void cache.invalidateQueries({ queryKey: ["overview"] });
@@ -201,6 +204,8 @@ export default function Reporting() {
               setSymptomName("");
               setConditionName("");
               setSeriousnessChoice("");
+              setSubmissionKey(crypto.randomUUID());
+              setCaseReference("");
             }}
           >
             Start another report
@@ -328,6 +333,10 @@ export default function Reporting() {
                     <option value="PATIENT">Patient</option>
                     <option value="PHARMACIST">Pharmacist</option>
                   </select>
+                </label>
+                <label>Case reference (optional)
+                  <input value={caseReference} maxLength={80} minLength={2} onChange={(e) => setCaseReference(e.target.value)} placeholder="A local reference without patient identifiers" />
+                  <span className="small muted">Use the same reference for the same case. Distinct patients need distinct references.</span>
                 </label>
                 <label>
                   Reporting hospital (optional)

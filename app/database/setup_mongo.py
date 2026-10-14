@@ -36,6 +36,8 @@ def setup_mongo_indexes():
     # 4. Index on report_id for uniqueness
     print("Creating unique index on 'report_id'...")
     collection.create_index([("report_id", pymongo.ASCENDING)], unique=True, name="idx_report_id_unique")
+    collection.create_index("submission_key", unique=True, sparse=True, name="idx_submission_key_unique")
+    collection.create_index("case_key", unique=True, sparse=True, name="idx_case_key_unique")
 
     print("MongoDB indexes successfully created.")
 

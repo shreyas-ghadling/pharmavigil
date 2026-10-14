@@ -221,13 +221,20 @@ def inventory(user=Depends(access(ADMIN, PHARMACIST))):
 
 
 @app.post("/api/adverse-reports", status_code=201)
-def adverse_report(payload: AdverseReportCreate, user=Depends(access(ADMIN, DOCTOR, PHARMACIST))):
+def adverse_report(payload: AdverseReportCreate, request: Request, user=Depends(access(ADMIN, DOCTOR, PHARMACIST))):
     data = payload.model_dump()
     med = next((m for m in sql_service.get_all_medicines() if m["medicine_id"] == payload.medicine_id), None)
     if not med:
         raise HTTPException(422, "Choose a registered medicine.")
     data["medicine_name"] = med["commercial_name"]
     data["submitted_by"] = {key: user[key] for key in ("user_id", "username", "full_name", "role")}
+    key = request.headers.get("Idempotency-Key")
+    if key and (len(key) > 100 or len(key) < 8):
+        raise HTTPException(422, "Use a valid submission key.")
+    data["submission_key"] = hashlib.sha256(f"{user['user_id']}:{key}".encode()).hexdigest() if key else None
+    reference = (payload.case_reference or "").strip()
+    data["case_reference"] = reference or None
+    data["case_key"] = hashlib.sha256(f"{user['user_id']}:{reference.casefold()}".encode()).hexdigest() if reference else None
     return {"report_id": mongo_service.insert_adverse_report(data)}
 
 

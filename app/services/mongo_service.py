@@ -65,7 +65,25 @@ class MongoService:
 
         # 3. Insert into MongoDB
         collection = mongo_client.get_adverse_reports_collection()
-        collection.insert_one(doc)
+        import hashlib, json
+        from pymongo.errors import DuplicateKeyError
+        from app.utils.exceptions import PharmavigilException
+        for key in ("submission_key", "case_key"):
+            if doc.get(key) is None:
+                doc.pop(key, None)
+        doc["submission_fingerprint"] = hashlib.sha256(json.dumps(
+            {k: v for k, v in doc.items() if k not in {"report_id", "reported_at", "submission_key", "case_key"}},
+            sort_keys=True, default=str).encode()).hexdigest()
+        try:
+            collection.insert_one(doc)
+        except DuplicateKeyError:
+            if doc.get("submission_key"):
+                existing = collection.find_one({"submission_key": doc["submission_key"]})
+                if existing and existing.get("submission_fingerprint") == doc["submission_fingerprint"]:
+                    return existing["report_id"]
+            if doc.get("case_key") and collection.find_one({"case_key": doc["case_key"]}):
+                raise PharmavigilException("This case reference is already recorded for your account. Use a distinct reference for a different case.")
+            raise PharmavigilException("This submission key is already used. Start a new report for a different case.")
         return doc["report_id"]
 
     def get_adverse_reports(self, filter_dict: Optional[Dict[str, Any]] = None, limit: int = 50) -> List[Dict[str, Any]]:
@@ -105,12 +123,19 @@ class MongoService:
             {
                 "$unwind": "$symptoms"
             },
+            {"$group": {"_id": {"report": "$_id", "medicine": "$medicine_name",
+                                     "symptom": {"$toLower": {"$trim": {"input": "$symptoms.name"}}}},
+                         "medicine_name": {"$first": "$medicine_name"},
+                         "symptom_name": {"$first": "$symptoms.name"},
+                         "severity_score": {"$first": "$severity_score"},
+                         "seriousness_criteria": {"$first": "$seriousness_criteria"},
+                         "legacy_flag": {"$max": "$symptoms.is_critical"}}},
             # Stage 3: Group by drug and symptom to compute frequencies
             {
                 "$group": {
                     "_id": {
                         "medicine_name": "$medicine_name",
-                        "symptom": "$symptoms.name"
+                        "symptom": "$_id.symptom"
                     },
                     "incident_count": {"$sum": 1},
                     "avg_severity": {"$avg": "$severity_score"},
@@ -122,7 +147,7 @@ class MongoService:
                     ]}},
                     "critical_cases": {
                         "$sum": {
-                            "$cond": ["$symptoms.is_critical", 1, 0]
+                            "$cond": ["$legacy_flag", 1, 0]
                         }
                     }
                 }
