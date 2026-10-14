@@ -80,6 +80,7 @@ export interface Recall {
   stock_unit: string;
 }
 export interface Quarantine {
+  hospital_id: number;
   hospital_name: string;
   city: string;
   contact_phone: string;

@@ -72,7 +72,7 @@ const nav: NavigationItem[] = [
     path: "/recalls", name: "Recalls", icon: ShieldAlert, roles: [admin],
     children: [
       { name: "Recall management", value: "management" },
-      { name: "Affected hospital deliveries", value: "stock" },
+      { name: "Affected stock & deliveries", value: "stock" },
     ],
   },
   {

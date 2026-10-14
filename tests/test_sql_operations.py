@@ -346,7 +346,7 @@ BCH-PCM-9042,101,2026-01-01,2028-01-01,5000,ACTIVE
             # Verify presence of real data fields in PDF
             assert test_batch in extracted_text
             assert "Acute Clinical Signal" in extracted_text
-            assert "EXPORT_TEST_OFFICER" in extracted_text
+            assert "EXPORT_TEST_OFFICER" in ''.join(extracted_text.split())
             assert "Historical Affected-Batch Deliveries" in extracted_text
 
         finally:

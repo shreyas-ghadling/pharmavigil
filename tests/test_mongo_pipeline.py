@@ -54,13 +54,16 @@ class TestMongoPipeline:
 
     @pytest.mark.skipif(not is_mongo_available(), reason="MongoDB server is not reachable")
     def test_clinical_notes_text_search(self):
-        """Verifies text index keyword retrieval on clinical notes."""
+        """Clinical search matches literal terms in notes or structured symptom fields."""
         results = mongo_service.search_clinical_notes_text("hypotension")
         assert isinstance(results, list)
         if results:
             first_match = results[0]
             assert "clinical_notes" in first_match
-            assert "hypotension" in first_match["clinical_notes"].lower()
+            searchable = [first_match.get('clinical_notes', ''), first_match.get('medicine_name', ''),
+                          first_match.get('batch_number') or '', first_match.get('report_id', '')]
+            searchable.extend(s.get('name', '') for s in first_match.get('symptoms', []))
+            assert any('hypotension' in value.lower() for value in searchable)
 
 
 class TestMongoOfflineTransformationLogic:

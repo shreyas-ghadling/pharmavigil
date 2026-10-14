@@ -38,17 +38,23 @@ Officers can filter by minimum average intensity, report count, and reporting wi
 
 An individual case-review queue includes reported serious outcomes and legacy symptom flags regardless of pattern thresholds. Submission retries are protected and each symptom counts once per report. Optional local case references prevent the same account from recording an identified case twice. Similar demographics alone do not establish that two reports describe the same patient.
 
+Clinical search matches a literal phrase across notes, symptoms, medicine names, batch numbers, and report IDs. It ignores letter case and includes page controls for all matching records. Submission IDs and ingestion timestamps are assigned by the server. A local case reference is separate from the generated report ID.
+
 ### Batch recalls and stock tracing
 
 Safety officers can select a batch, enter a recall reason, and confirm the action. A MySQL stored procedure updates the batch status and creates an audit record containing the reason, officer name, and timestamp.
 
 Distribution records identify historical deliveries of recalled or expired batches. Delivered quantities do not establish current hospital stock. A recall record represents initiation, not confirmation of hospital notification, recovery, disposal, or completion. Recalled batches are blocked from further dispatch.
 
+The affected-stock view also includes recorded central balances, including recalled batches with no hospital deliveries. Inferred legacy opening balances remain labelled. Recall initiation uses the same batch row lock as dispatch, so simultaneous recalls create one audit entry and dispatch cannot pass a recall already recorded.
+
 ### Dashboard and exports
 
 The dashboard changes according to the signed-in user's role. Inventory users see batches with available recorded stock, registered batches, expiry warnings, and dispatch-record counts. Safety officers also see patterns for review and recall initiations. Doctors and patients get a shortcut to submit a reaction report.
 
 Safety officers can download a PDF audit and a CSV affected-delivery manifest. These exports describe recall initiations and historical distributions, without claiming physical stock recovery. Pharmacists can download the batch-registration sample CSV.
+
+Exports include affected central balances and recalls with no hospital deliveries. The CSV separates recall initiation, hospital delivery, and central balance rows. Batch totals are recorded once per initiation rather than repeated for each hospital. Missing facts remain blank. The PDF includes all audit entries and full reasons, with wrapped tables and repeated headers across pages.
 
 ## User roles
 
@@ -65,7 +71,7 @@ Accounts are stored in MySQL with hashed passwords. Signed cookies maintain logi
 | Database | Records stored | Main operations |
 | --- | --- | --- |
 | MySQL | Users, manufacturers, medicines, batches, hospitals, distributions, and recall audits | Table joins, stock calculations, transactions, foreign-key checks, and a recall stored procedure |
-| MongoDB | Adverse reaction reports, patient details, symptom lists, and clinical notes | Document validation, symptom aggregation, severity calculations, and indexed text search |
+| MongoDB | Adverse reaction reports, patient details, symptom lists, clinical notes, and review histories | Document validation, symptom aggregation, severity calculations, and literal report search |
 
 MySQL keeps the relationships between medicines, batches, and hospitals consistent. MongoDB allows reports to contain different symptom lists and clinical observations. The backend links the two databases by verifying medicine and batch references before accepting a report.
 

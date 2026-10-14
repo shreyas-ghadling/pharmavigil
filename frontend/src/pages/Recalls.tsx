@@ -153,7 +153,7 @@ export default function Recalls() {
         ) : (
           <Table
             rows={quarantine.data}
-            rowKey={(q) => `${q.batch_number}-${q.hospital_name}`}
+            rowKey={(q) => `${q.batch_number}-${q.hospital_id}`}
             columns={[
               {
                 title: "Hospital",

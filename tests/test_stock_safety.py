@@ -2,6 +2,7 @@
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date, timedelta
 import uuid
+from threading import Barrier
 from app.services.sql_service import sql_service
 from app.database.mysql_client import mysql_client
 from app.utils.exceptions import RecalledBatchOperationError
@@ -24,10 +25,19 @@ def test_concurrent_dispatch_cannot_exceed_available_stock():
     assert row["total"] == 60
 
 
-def test_concurrent_recalls_create_one_audit():
+def test_concurrent_recalls_create_one_audit(monkeypatch):
     batch = 'BCH-RECALL-' + uuid.uuid4().hex[:8].upper()
     today = date.today()
     sql_service.insert_batch(batch, 101, today.isoformat(), (today + timedelta(days=365)).isoformat(), 100)
+    # Both requests pass the service pre-check before either invokes the routine.
+    gate = Barrier(2)
+    original = sql_service.get_batch_by_number
+    def simultaneous_precheck(number):
+        row = original(number)
+        if number == batch:
+            gate.wait(timeout=10)
+        return row
+    monkeypatch.setattr(sql_service, 'get_batch_by_number', simultaneous_precheck)
     def attempt():
         try:
             sql_service.execute_emergency_recall(batch, 'Concurrent safety review', 'tester')

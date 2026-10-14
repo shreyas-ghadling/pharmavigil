@@ -64,6 +64,7 @@ def test_pdf_includes_every_audit_full_reason_and_central_balance():
 
 
 def test_missing_pdf_library_does_not_return_text_disguised_as_pdf(monkeypatch):
-    monkeypatch.setattr('app.services.report_generator.HAS_REPORTLAB', False)
+    import importlib
+    monkeypatch.setattr(importlib.import_module('app.services.report_generator'), 'HAS_REPORTLAB', False)
     with pytest.raises(RuntimeError, match='ReportLab'):
         report_generator.generate_pdf_recall_manifest([], [], 'no-library.pdf')

@@ -204,7 +204,7 @@ export default function Safety() {
         )}
         {clinical.data && !clinical.isFetching && !clinical.error ? <div className="button-row">
           <button className="secondary" disabled={page === 1} onClick={() => setPage((p) => p - 1)}>Previous</button>
-          <span>Page {page} · {clinical.data.total} matching reports</span>
+          <span>Page {page} Â· {clinical.data.total} matching reports</span>
           <button className="secondary" disabled={page * clinical.data.page_size >= clinical.data.total} onClick={() => setPage((p) => p + 1)}>Next</button>
         </div> : null}
       </Panel> : null}

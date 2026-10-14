@@ -20,7 +20,7 @@ from app.models.schemas import BatchIntakeSchema
 try:
     from reportlab.lib import colors
     from reportlab.lib.pagesizes import letter
-    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, KeepTogether
     from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
     HAS_REPORTLAB = True
 except ImportError:
@@ -185,9 +185,12 @@ class ReportGenerator:
         doc = SimpleDocTemplate(str(output_path), pagesize=letter,
                                 rightMargin=36, leftMargin=36, topMargin=36, bottomMargin=40)
         styles = getSampleStyleSheet()
-        cell_style = ParagraphStyle('ManifestCell', parent=styles['Normal'], fontSize=8, leading=10,
-                                    wordWrap='CJK')
+        cell_style = ParagraphStyle('ManifestCell', parent=styles['Normal'], fontSize=8, leading=10)
         header_style = ParagraphStyle('ManifestHeader', parent=cell_style, textColor=colors.white)
+        section_intro = ParagraphStyle('SectionIntro', parent=styles['Normal'], spaceAfter=6)
+
+        def section(title, description):
+            story.append(KeepTogether([Paragraph(title, styles['Heading2']), Paragraph(description, section_intro)]))
         story = [Paragraph('PHARMAVIGIL SAFETY AUDIT &amp; RECALL MANIFEST', styles['Heading1']),
                  Paragraph('Generated: ' + datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC'), styles['Normal']),
                  Paragraph('Blank CSV cells and "Not recorded" PDF values indicate missing or inapplicable fields. Recorded zero quantities remain zero. Quantities use each medicine stock unit; do not add unlike units.', styles['Normal']), Spacer(1, 12)]
@@ -198,7 +201,7 @@ class ReportGenerator:
         def table(headers, rows, widths):
             data = [[Paragraph(escape(h), header_style) for h in headers]]
             data.extend([[Paragraph(escape(text(v)), cell_style) for v in row] for row in rows])
-            grid = Table(data, colWidths=widths, repeatRows=1, hAlign='LEFT')
+            grid = Table(data, colWidths=widths, repeatRows=1, splitInRow=1, hAlign='LEFT')
             grid.setStyle(TableStyle([
                 ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2B6CB0')),
                 ('VALIGN', (0, 0), (-1, -1), 'TOP'),
@@ -208,19 +211,17 @@ class ReportGenerator:
                 ('TOPPADDING', (0, 0), (-1, -1), 6), ('BOTTOMPADDING', (0, 0), (-1, -1), 6)]))
             story.append(grid)
 
-        story.append(Paragraph('1. Batch Recall Initiations', styles['Heading2']))
-        story.append(Paragraph('Historical deliveries at initiation do not confirm recovery. Hospital notification, returns, disposal, and recall completion are not recorded here.', styles['Normal']))
+        section('1. Batch Recall Initiations', 'Historical deliveries at initiation do not confirm recovery. Hospital notification, returns, disposal, and recall completion are not recorded here.')
         if recall_audits:
             table(['Audit', 'Batch', 'Full recall reason', 'Recorded by', 'Hospitals', 'Delivered at initiation', 'Initiated at'],
                   [[a.get('audit_id'), a.get('batch_number'), a.get('reason'), a.get('recalled_by'),
                     a.get('affected_hospitals'),
                     text(a.get('distributed_quantity_at_initiation', a.get('total_units_recalled'))) + ' ' + text(a.get('stock_unit')),
-                    a.get('recalled_at')] for a in recall_audits], [30, 85, 145, 80, 40, 80, 80])
+                    a.get('recalled_at')] for a in recall_audits], [30, 85, 135, 80, 50, 80, 80])
         else:
             story.append(Paragraph('No batch recalls logged in audit history.', styles['Normal']))
         story.append(Spacer(1, 16))
-        story.append(Paragraph('2. Historical Affected-Batch Deliveries', styles['Heading2']))
-        story.append(Paragraph('Delivered quantities do not establish stock remaining, quarantined, or recovered at hospitals.', styles['Normal']))
+        section('2. Historical Affected-Batch Deliveries', 'Delivered quantities do not establish stock remaining, quarantined, or recovered at hospitals.')
         if quarantine_data:
             table(['Hospital / city', 'Contact phone', 'Medicine / batch', 'Reason flagged', 'Historical deliveries'],
                   [[text(q.get('hospital_name')) + ' / ' + text(q.get('city')), q.get('contact_phone'),
@@ -230,8 +231,7 @@ class ReportGenerator:
         else:
             story.append(Paragraph('No hospital delivery records match the affected-batch criteria.', styles['Normal']))
         story.append(Spacer(1, 16))
-        story.append(Paragraph('3. Affected Central Balances', styles['Heading2']))
-        story.append(Paragraph('Current recorded ledger balances, not verified physical counts or recovered stock. Legacy opening balances are identified where inferred.', styles['Normal']))
+        section('3. Affected Central Balances', 'Current recorded ledger balances, not verified physical counts or recovered stock. Legacy opening balances are identified where inferred.')
         if central_stock:
             table(['Medicine / batch', 'Reason flagged', 'Recorded central balance', 'Opening balance basis'],
                   [[text(c.get('commercial_name')) + ' / ' + text(c.get('batch_number')), c.get('recall_status'),
