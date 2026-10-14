@@ -70,9 +70,9 @@ export default function Overview() {
         <>
           <div className="stats-grid">
             <Stat
-              title="Stock on hand"
-              value={stock.reduce((n, b) => n + Number(b.current_stock), 0)}
-              detail="Units across all batches"
+              title="Batches with available stock"
+              value={stock.filter((b) => b.recall_status === "ACTIVE" && Number(b.current_stock) > 0).length}
+              detail="Quantities are tracked per stock unit"
               icon={<Package size={22} />}
             />
             <Stat
@@ -88,12 +88,12 @@ export default function Overview() {
               icon={<ShieldAlert size={22} />}
             />
             <Stat
-              title={admin ? "Patterns for review" : "Units distributed"}
+              title={admin ? "Patterns for review" : "Dispatch records"}
               value={
                 admin
                   ? data.signals.length
                   : stock.reduce(
-                      (n, b) => n + Number(b.total_distributed_units),
+                      (n, b) => n + Number(b.distribution_count),
                       0,
                     )
               }

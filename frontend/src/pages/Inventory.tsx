@@ -25,6 +25,7 @@ export default function Inventory() {
   const [selected, setSelected] = useState<Stock | null>(null);
   const [error, setError] = useState("");
   const [file, setFile] = useState<File | null>(null);
+  const [dispatchBatch, setDispatchBatch] = useState("");
   const cache = useQueryClient();
   const stock = useQuery({
     queryKey: ["inventory"],
@@ -95,9 +96,9 @@ export default function Inventory() {
       />
       <div className="stats-grid">
         <Stat
-          title="Units on hand"
-          value={rows.reduce((n, b) => n + Number(b.current_stock), 0)}
-          detail="Across registered batches"
+          title="Batches with available stock"
+          value={rows.filter((b) => b.recall_status === "ACTIVE" && Number(b.current_stock) > 0).length}
+          detail="Quantities shown per batch and stock unit"
           icon={<Package />}
         />
         <Stat
@@ -182,8 +183,8 @@ export default function Inventory() {
                   title: "Stock",
                   render: (b) => (
                     <>
-                      {number(b.current_stock)}
-                      <small>of {number(b.total_units_produced)} units</small>
+                      {number(b.current_stock)} {b.stock_unit}s
+                      <small>{number(b.total_received_units)} recorded as received</small>
                     </>
                   ),
                 },
@@ -308,11 +309,11 @@ export default function Inventory() {
             <div className="form-grid">
               <label>
                 Eligible batch
-                <select name="batch" required>
+                <select name="batch" required value={dispatchBatch} onChange={(e) => setDispatchBatch(e.target.value)}>
                   <option value="">Select an active batch</option>
                   {batches.data?.map((b) => (
                     <option value={b.batch_number} key={b.batch_number}>
-                      {b.commercial_name} — {b.batch_number}
+                      {b.commercial_name} — {b.batch_number} ({b.stock_unit})
                     </option>
                   ))}
                 </select>
@@ -329,7 +330,7 @@ export default function Inventory() {
                 </select>
               </label>
               <label>
-                Quantity (units)
+                Quantity ({batches.data?.find((b) => b.batch_number === dispatchBatch)?.stock_unit ?? "select a batch"})
                 <input
                   type="number"
                   name="quantity"
@@ -385,6 +386,7 @@ export default function Inventory() {
               Manufacturer: selected.manufacturer_name,
               Formulation: `${selected.generic_name} ${selected.strength}`,
               "Dosage form": selected.dosage_form,
+              "Stock unit": selected.stock_unit,
               "Manufactured on": selected.manufacturing_date,
               "Expires on": selected.expiry_date,
               "Units produced": number(selected.total_units_produced),

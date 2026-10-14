@@ -29,6 +29,10 @@ INSERT INTO medicines (medicine_id, commercial_name, generic_name, dosage_form, 
 ON DUPLICATE KEY UPDATE commercial_name=VALUES(commercial_name);
 
 -- 3. SEED BATCHES (10 Batches: Exactly 1 Expired, 2 Expiring within 30 days, 7 Active)
+UPDATE medicines SET stock_unit = CASE medicine_id WHEN 101 THEN 'tablet' WHEN 102 THEN 'capsule'
+    WHEN 103 THEN 'tablet' WHEN 104 THEN 'inhaler' WHEN 105 THEN 'capsule' WHEN 106 THEN 'tube' END
+WHERE medicine_id IN (101,102,103,104,105,106);
+
 INSERT INTO batches (batch_number, medicine_id, manufacturing_date, expiry_date, total_units_produced, recall_status) VALUES
 -- ACTIVE BATCH 1
 ('BCH-PCM-9042', 101, DATE_SUB(CURDATE(), INTERVAL 180 DAY), DATE_ADD(CURDATE(), INTERVAL 365 DAY), 50000, 'ACTIVE'),

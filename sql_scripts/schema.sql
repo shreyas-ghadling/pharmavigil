@@ -33,6 +33,7 @@ CREATE TABLE medicines (
     generic_name VARCHAR(150) NOT NULL,
     dosage_form VARCHAR(50) NOT NULL,
     strength VARCHAR(50) NOT NULL,
+    stock_unit VARCHAR(20) NOT NULL DEFAULT 'unspecified',
     manufacturer_id INT NOT NULL,
     CONSTRAINT fk_medicine_manufacturer 
         FOREIGN KEY (manufacturer_id) REFERENCES manufacturers(manufacturer_id)

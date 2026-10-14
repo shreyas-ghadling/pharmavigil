@@ -27,6 +27,7 @@ class SQLService:
                 m.generic_name,
                 m.dosage_form,
                 m.strength,
+                m.stock_unit,
                 m.manufacturer_id,
                 mf.company_name AS manufacturer_name
             FROM medicines m
@@ -42,6 +43,7 @@ class SQLService:
                 b.batch_number,
                 b.medicine_id,
                 m.commercial_name,
+                m.stock_unit,
                 b.manufacturing_date,
                 b.expiry_date,
                 b.total_units_produced,
@@ -76,6 +78,7 @@ class SQLService:
                 b.batch_number,
                 b.medicine_id,
                 m.commercial_name,
+                m.stock_unit,
                 b.manufacturing_date,
                 b.expiry_date,
                 b.total_units_produced,
@@ -109,6 +112,7 @@ class SQLService:
                 m.dosage_form,
                 m.strength,
                 mf.company_name AS manufacturer_name,
+                m.stock_unit,
                 b.manufacturing_date,
                 b.expiry_date,
                 b.total_units_produced,
@@ -119,6 +123,7 @@ class SQLService:
                 END AS recall_status,
                 DATEDIFF(b.expiry_date, CURDATE()) AS days_left,
                 COALESCE(SUM(bd.quantity_delivered), 0) AS total_distributed_units,
+                COUNT(bd.distribution_id) AS distribution_count,
                 COALESCE(sr.received, 0) AS total_received_units,
                 COALESCE(sr.inferred, 0) AS has_inferred_opening_balance,
                 (COALESCE(sr.received, 0) - COALESCE(SUM(bd.quantity_delivered), 0)) AS current_stock
@@ -133,7 +138,7 @@ class SQLService:
                 b.batch_number, m.commercial_name, m.generic_name, 
                 m.dosage_form, m.strength, mf.company_name, 
                 b.manufacturing_date, b.expiry_date, 
-                b.total_units_produced, b.recall_status, sr.received, sr.inferred
+                b.total_units_produced, b.recall_status, sr.received, sr.inferred, m.stock_unit
             ORDER BY b.expiry_date ASC;
         """
         return mysql_client.execute_query(query)
@@ -187,6 +192,9 @@ class SQLService:
                 recall_status=batch_info["recall_status"],
             )
             domain_batch.validate_for_dispensing()
+            cursor.execute("SELECT stock_unit FROM medicines WHERE medicine_id=%s", (batch_info["medicine_id"],))
+            if cursor.fetchone()["stock_unit"] == "unspecified":
+                raise ValueError("The selected batch has no defined inventory unit.")
             cursor.execute("SELECT COALESCE(SUM(quantity_delivered), 0) AS distributed FROM batch_distribution WHERE batch_number = %s", (batch_number,))
             distributed = cursor.fetchone()["distributed"]
             cursor.execute("SELECT COALESCE(SUM(quantity_received),0) AS received FROM stock_receipts WHERE batch_number=%s", (batch_number,))
@@ -206,6 +214,9 @@ class SQLService:
             batch = cursor.fetchone()
             if not batch:
                 raise ValueError("The selected batch does not exist.")
+            cursor.execute("SELECT stock_unit FROM medicines WHERE medicine_id=%s", (batch["medicine_id"],))
+            if cursor.fetchone()["stock_unit"] == "unspecified":
+                raise ValueError("The selected batch has no defined inventory unit.")
             if received_on > date.today() or received_on < batch["manufacturing_date"] or received_on > batch["expiry_date"]:
                 raise ValueError("The selected batch receipt date must be between manufacture and expiry, and cannot be in the future.")
             cursor.execute("SELECT * FROM stock_receipts WHERE batch_number=%s AND reference=%s", (batch_number, reference))

@@ -50,6 +50,16 @@ def migrate_stock(sql):
     print("Stock receipt ledger ready; legacy opening balances labelled explicitly.")
 
 
+def migrate_units(sql):
+    existing = sql.execute_one("SELECT COUNT(*) AS n FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name='medicines' AND column_name='stock_unit'")
+    if not existing["n"]:
+        sql.execute_update("ALTER TABLE medicines ADD COLUMN stock_unit VARCHAR(20) NOT NULL DEFAULT 'unspecified'")
+    for medicine_id, name, unit in [(101,"Cardiomax","tablet"),(102,"Neurocalm","capsule"),
+        (103,"Glucoguard","tablet"),(104,"PulmoBreeze","inhaler"),(105,"GastroRelief","capsule"),(106,"Dermacure","tube")]:
+        sql.execute_update("UPDATE medicines SET stock_unit=%s WHERE medicine_id=%s AND commercial_name=%s AND stock_unit='unspecified'", (unit,medicine_id,name))
+    print("Demo stock units defined; other catalog entries retain an explicit unspecified unit.")
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--hosted", action="store_true")
@@ -58,4 +68,5 @@ if __name__ == "__main__":
     sql, mongo = clients(args.hosted, args.database)
     migrate_mongo(mongo)
     migrate_stock(sql)
+    migrate_units(sql)
     mongo.close()
