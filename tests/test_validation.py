@@ -176,7 +176,7 @@ class TestDomainOOPModels:
             critical_cases=3
         )
         assert alert["alert_level"] == "CRITICAL"
-        assert "IMMEDIATE ACTION REQUIRED" in alert["recommendation"]
+        assert "Urgently review" in alert["recommendation"]
 
     def test_batch_medicine_mismatch_exception(self):
         """Verifies BatchMedicineMismatchError domain exception properties."""

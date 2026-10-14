@@ -194,13 +194,14 @@ class SafetyAuditor:
 
         if level == "CRITICAL":
             recommendation = (
-                f"IMMEDIATE ACTION REQUIRED: High pharmacovigilance signal detected for {medicine_name} "
-                f"({symptom}). Trigger emergency batch recall and initiate distribution quarantine."
+                f"Urgently review the reported pattern for {medicine_name} ({symptom}). "
+                "Assess individual cases, exposure history, alternative explanations, and batch distribution. "
+                "Any recall decision requires separate batch-specific investigation and an authorized decision."
             )
         elif level == "HIGH":
             recommendation = (
-                f"SAFETY ADVISORY: Elevated symptom frequency for {medicine_name} ({symptom}). "
-                f"Flag batch for clinical review and monitor patient intake."
+                f"Prioritize review of reports for {medicine_name} ({symptom}). "
+                "Review timing, dose, other medicines, and supporting batch evidence before proposing action."
             )
         else:
             recommendation = "Standard baseline surveillance; within acceptable tolerance levels."
