@@ -160,8 +160,6 @@ class ReportGenerator:
                 'record_type': 'HOSPITAL_DELIVERY', 'batch_number': row.get('batch_number'),
                 'commercial_name': row.get('commercial_name'), 'affected_reason': row.get('affected_reason'),
                 'reason': audit.get('reason'), 'recalled_by': audit.get('recalled_by'),
-                'affected_hospitals': audit.get('affected_hospitals'),
-                'distributed_quantity_at_recall_initiation': audit.get('distributed_quantity_at_initiation', audit.get('total_units_recalled')),
                 'hospital_id': row.get('hospital_id'), 'hospital_name': row.get('hospital_name'),
                 'city': row.get('city'), 'contact_phone': row.get('contact_phone'),
                 'historically_distributed_units': row.get('historically_distributed_units', row.get('total_quarantine_units')),

@@ -46,7 +46,7 @@ export default function Exports() {
             kind: "csv",
             title: "Affected-delivery manifest",
             description:
-              "A CSV of affected batches, recall reasons, hospitals, contacts, and quantities.",
+              "A CSV with separate rows for recall initiations, historical hospital deliveries, and affected central balances.",
             icon: Table2,
             label: "Download CSV",
           },
@@ -75,6 +75,8 @@ export default function Exports() {
       </div>
       <p className="small muted">
         Downloads reflect the data available at the time of generation.
+        CSV record_type identifies each row. Batch totals appear only on recall initiation rows.
+        Delivery quantities and central balances are separate measures. Compare quantities only within the same stock unit.
       </p>
     </>
   );
