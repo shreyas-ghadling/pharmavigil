@@ -74,7 +74,7 @@ SAMPLE_ADVERSE_REPORTS = [
         ],
         "severity_score": 4,
         "hospital_id": 3,
-        "clinical_notes": "Self-reported feeling extreme lightheadedness and acute dizziness after taking Cardiomax 50mg.",
+        "clinical_notes": "Self-reported feeling extreme lightheadedness and acute dizziness after taking Cardiomax 5 mg.",
         "reported_at": "2026-03-14T14:00:00Z"
     },
     {

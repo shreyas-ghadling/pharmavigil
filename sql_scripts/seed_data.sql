@@ -20,7 +20,7 @@ ON DUPLICATE KEY UPDATE company_name=VALUES(company_name);
 
 -- 2. SEED MEDICINES (6 Medicines)
 INSERT INTO medicines (medicine_id, commercial_name, generic_name, dosage_form, strength, manufacturer_id) VALUES
-(101, 'Cardiomax', 'Amlodipine Besylate', 'Tablet', '50mg', 1),
+(101, 'Cardiomax', 'Amlodipine Besylate', 'Tablet', '5 mg', 1),
 (102, 'Neurocalm', 'Pregabalin', 'Capsule', '75mg', 2),
 (103, 'Glucoguard', 'Metformin HCl', 'Tablet', '500mg', 3),
 (104, 'PulmoBreeze', 'Salbutamol Sulfate', 'Inhalation Spray', '100mcg', 1),
