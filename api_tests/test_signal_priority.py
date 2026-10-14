@@ -22,3 +22,10 @@ def test_pattern_recommendations_require_investigation(count, average):
     assert "batch" in recommendation
     assert "trigger emergency batch recall" not in recommendation
     assert "initiate distribution quarantine" not in recommendation
+
+
+def test_routine_priority_is_not_a_safety_assurance():
+    result = SafetyAuditor.evaluate_signal_alert("Example", "Nausea", 1, 1, 0)
+    assert result["review_priority"] == "ROUTINE"
+    assert "does not establish medicine safety" in result["recommendation"]
+    assert "acceptable tolerance" not in result["recommendation"]

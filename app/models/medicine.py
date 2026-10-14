@@ -204,7 +204,10 @@ class SafetyAuditor:
                 "Review timing, dose, other medicines, and supporting batch evidence before proposing action."
             )
         else:
-            recommendation = "Standard baseline surveillance; within acceptable tolerance levels."
+            recommendation = (
+                "Below the project's higher-priority thresholds. Review the reports in context. "
+                "This result does not establish medicine safety or rule out an important reaction."
+            )
 
         return {
             "medicine_name": medicine_name,
