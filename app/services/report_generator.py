@@ -145,7 +145,7 @@ class ReportGenerator:
             "reason",
             "recalled_by",
             "affected_hospitals",
-            "total_units_recalled",
+            "distributed_quantity_at_recall_initiation",
             "hospital_name",
             "city",
             "contact_phone",
@@ -167,7 +167,7 @@ class ReportGenerator:
                     "reason": audit.get("reason", "Expired batch" if row.get("affected_reason") == "EXPIRED" else "Recall reason not recorded"),
                     "recalled_by": audit.get("recalled_by", ""),
                     "affected_hospitals": audit.get("affected_hospitals", ""),
-                    "total_units_recalled": audit.get("total_units_recalled", ""),
+                    "distributed_quantity_at_recall_initiation": audit.get("distributed_quantity_at_initiation", audit.get("total_units_recalled", "")),
                     "hospital_name": row.get("hospital_name", ""),
                     "city": row.get("city", ""),
                     "contact_phone": row.get("contact_phone", ""),
@@ -182,7 +182,7 @@ class ReportGenerator:
                     "reason": a.get("reason", ""),
                     "recalled_by": a.get("recalled_by", ""),
                     "affected_hospitals": a.get("affected_hospitals", 0),
-                    "total_units_recalled": a.get("total_units_recalled", 0),
+                    "distributed_quantity_at_recall_initiation": a.get("distributed_quantity_at_initiation", a.get("total_units_recalled", 0)),
                     "hospital_name": "N/A (Central Stock)",
                     "city": "N/A",
                     "contact_phone": "N/A",
@@ -239,7 +239,8 @@ class ReportGenerator:
             story.append(Spacer(1, 12))
 
             # Section 1: Emergency Batch Recall Audits
-            story.append(Paragraph("1. Emergency Batch Recall Audits Executed", styles["Heading2"]))
+            story.append(Paragraph("1. Batch Recall Initiations", styles["Heading2"]))
+            story.append(Paragraph("Quantities reflect historical deliveries at initiation, not confirmed recovery. Hospital notification, returns, disposal, and recall completion are not recorded by this manifest.", styles["Normal"]))
             if recall_audits:
                 audit_table_data = [["Audit ID", "Batch No", "Reason", "Recalled By", "Hospitals", "Units"]]
                 for a in recall_audits[:8]:

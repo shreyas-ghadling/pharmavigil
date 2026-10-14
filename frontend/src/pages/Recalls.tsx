@@ -115,9 +115,9 @@ export default function Recalls() {
           {mutation.error ? <Notice>{mutation.error.message}</Notice> : null}
           {mutation.isSuccess ? (
             <Notice success>
-              Recall recorded. {mutation.data.affected_hospitals} hospitals
+              Recall initiated. {mutation.data.affected_hospitals} hospitals
               affected; {number(mutation.data.total_units_recalled)} units
-              traced.
+              historically distributed. Recovery and disposal have not been confirmed.
             </Notice>
           ) : null}
           <button className="danger" disabled={!batches.data?.length}>
@@ -163,7 +163,7 @@ export default function Recalls() {
       </Panel> : null}
       {!stockView ? <Panel
         title="Recall history"
-        description="A permanent record of recall decisions and their impact."
+        description="Recorded recall initiations and distribution exposure. These records do not confirm product recovery or recall completion."
       >
         {recalls.isPending ? (
           <Loading />
@@ -180,7 +180,7 @@ export default function Recalls() {
                   <>
                     {r.batch_number}
                     <small>
-                      <Badge value="RECALLED" />
+                      <span className="badge badge-amber">Recall initiated</span>
                     </small>
                   </>
                 ),
@@ -188,9 +188,9 @@ export default function Recalls() {
               { title: "Reason", render: (r) => r.reason },
               { title: "Recorded by", render: (r) => r.recalled_by },
               {
-                title: "Hospitals / units",
+                title: "Hospitals / historically delivered",
                 render: (r) =>
-                  `${r.affected_hospitals} / ${number(r.total_units_recalled)}`,
+                  `${r.affected_hospitals} / ${number(r.distributed_quantity_at_initiation)}`,
               },
               {
                 title: "Date",
@@ -207,8 +207,7 @@ export default function Recalls() {
             <ShieldAlert size={38} />
             <h3>Recall {batch}?</h3>
             <p>
-              This will block future dispatch and record the recall for all
-              affected hospitals.
+              This will block future dispatch and record the recall initiation and historical hospital deliveries. It does not notify hospitals or confirm stock recovery.
             </p>
             <div className="review-notes">
               <strong>Authorizing officer</strong>

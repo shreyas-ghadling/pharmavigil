@@ -286,6 +286,8 @@ class SQLService:
             "recalled_by": recalled_by,
             "affected_hospitals": affected_hospitals,
             "total_units_recalled": total_units_recalled
+            ,"distributed_quantity_at_initiation": total_units_recalled,
+            "recall_stage": "INITIATED"
         }
 
     def get_high_risk_quarantine_trace(self) -> List[Dict[str, Any]]:
@@ -332,6 +334,8 @@ class SQLService:
                 recalled_by,
                 affected_hospitals,
                 total_units_recalled,
+                total_units_recalled AS distributed_quantity_at_initiation,
+                'INITIATED' AS recall_stage,
                 recalled_at
             FROM recall_audit
             ORDER BY recalled_at DESC;
