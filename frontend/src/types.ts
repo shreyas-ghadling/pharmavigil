@@ -50,6 +50,9 @@ export interface Signal {
   risk_level: string;
   alert_level: string;
   recommendation: string;
+  priority_score: number;
+  review_priority: "URGENT" | "HIGH" | "ROUTINE";
+  reported_serious_cases: number;
 }
 export interface Recall {
   audit_id: number;

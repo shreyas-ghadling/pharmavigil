@@ -32,8 +32,8 @@ export default function SignalChart({ signals }: { signals: Signal[] }) {
           />
           <Tooltip />
           <Bar
-            dataKey="signal_risk_score"
-            name="Risk score"
+            dataKey="priority_score"
+            name="Review priority score"
             fill="#465fff"
             radius={[0, 5, 5, 0]}
           />

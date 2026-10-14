@@ -11,7 +11,7 @@ import {
 import { api } from "../api";
 import { useAuth } from "../auth";
 import {
-  Badge,
+  ReviewPriorityBadge,
   Empty,
   Loading,
   Notice,
@@ -88,7 +88,7 @@ export default function Overview() {
               icon={<ShieldAlert size={22} />}
             />
             <Stat
-              title={admin ? "Safety signals" : "Units distributed"}
+              title={admin ? "Patterns for review" : "Units distributed"}
               value={
                 admin
                   ? data.signals.length
@@ -99,7 +99,7 @@ export default function Overview() {
               }
               detail={
                 admin
-                  ? "At default detection thresholds"
+                  ? "At default review thresholds"
                   : "Delivered to partner hospitals"
               }
               icon={<Activity size={22} />}
@@ -107,10 +107,10 @@ export default function Overview() {
           </div>
           <div className="overview-grid">
             <Panel
-              title={admin ? "Safety signals" : "Expiry watch"}
+              title={admin ? "Reported patterns" : "Expiry watch"}
               description={
                 admin
-                  ? "Prioritize the signals that need attention."
+                  ? "Prioritize reported patterns for investigation."
                   : "Review batches nearing their expiry date."
               }
               action={
@@ -136,14 +136,14 @@ export default function Overview() {
                       <div className="grow">
                         <strong>{s.medicine}</strong>
                         <p>
-                          {s.symptom} · {s.incident_count} incidents
+                          {s.symptom} · {s.incident_count} report entries
                         </p>
                       </div>
-                      <Badge value={s.risk_level} />
+                      <ReviewPriorityBadge value={s.review_priority} />
                     </div>
                   ))
                 ) : (
-                  <Empty>No signals exceed the current thresholds.</Empty>
+                  <Empty>No patterns meet the current review thresholds.</Empty>
                 )
               ) : expiring.length ? (
                 expiring.slice(0, 5).map((b) => (

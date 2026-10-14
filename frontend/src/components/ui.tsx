@@ -82,6 +82,12 @@ export function Panel({
     </section>
   );
 }
+export function ReviewPriorityBadge({ value }: { value: "URGENT" | "HIGH" | "ROUTINE" }) {
+  const tone = value === "URGENT" ? "badge-red" : value === "HIGH" ? "badge-amber" : "badge-blue";
+  const label = value === "URGENT" ? "Urgent review" : value === "HIGH" ? "Prioritized review" : "Routine review";
+  return <span className={`badge ${tone}`}>{label}</span>;
+}
+
 export function Badge({ value }: { value: string }) {
   return (
     <span

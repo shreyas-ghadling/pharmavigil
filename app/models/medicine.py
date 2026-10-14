@@ -212,6 +212,8 @@ class SafetyAuditor:
             "avg_severity": avg_severity,
             "critical_cases": critical_cases,
             "signal_risk_score": risk_score,
+            "priority_score": risk_score,
+            "review_priority": {"CRITICAL": "URGENT", "HIGH": "HIGH", "MODERATE": "ROUTINE"}[level],
             "alert_level": level,
             "recommendation": recommendation
         }

@@ -100,6 +100,9 @@ class MongoService:
                     },
                     "incident_count": {"$sum": 1},
                     "avg_severity": {"$avg": "$severity_score"},
+                    "reported_serious_cases": {"$sum": {"$cond": [
+                        {"$gt": [{"$size": {"$ifNull": ["$seriousness_criteria", []]}}, 0]}, 1, 0
+                    ]}},
                     "critical_cases": {
                         "$sum": {
                             "$cond": ["$symptoms.is_critical", 1, 0]
@@ -122,6 +125,7 @@ class MongoService:
                     "incident_count": 1,
                     "avg_severity": {"$round": ["$avg_severity", 2]},
                     "critical_cases": 1,
+                    "reported_serious_cases": 1,
                     "signal_risk_score": {
                         "$round": [
                             {"$multiply": ["$incident_count", "$avg_severity"]},
@@ -150,6 +154,8 @@ class MongoService:
             )
             row["alert_level"] = eval_data["alert_level"]
             row["risk_level"] = eval_data["alert_level"]
+            row["priority_score"] = eval_data["priority_score"]
+            row["review_priority"] = eval_data["review_priority"]
             row["recommendation"] = eval_data["recommendation"]
 
         return results

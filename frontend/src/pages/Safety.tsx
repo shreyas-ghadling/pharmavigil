@@ -4,7 +4,7 @@ import { useSearchParams } from "react-router-dom";
 import { Activity, Search } from "lucide-react";
 import { api } from "../api";
 import {
-  Badge,
+  ReviewPriorityBadge,
   Empty,
   Loading,
   Notice,
@@ -40,12 +40,13 @@ export default function Safety() {
     <>
       <PageTitle
         title="Safety monitoring"
-        description="Identify emerging reactions and investigate clinical observations."
+        description="Review reported patterns and investigate clinical observations."
       />
       {!clinicalView ? <Panel
         title="Signal detection"
-        description="Adjust thresholds to focus the safety review."
+        description="Screen reported patterns for further review."
       >
+        <p className="small muted">Priority score = report entries × average intensity. This project heuristic does not estimate incidence, probability of harm, or establish causality. Review priorities use project thresholds: 12 or above for urgent review, 6 or above for prioritized review, otherwise routine review.</p>
         <div className="filter-grid">
           <label>
             Minimum severity: {severity}/5
@@ -84,26 +85,26 @@ export default function Safety() {
                     <span className="list-icon">
                       <Activity size={19} />
                     </span>
-                    <Badge value={s.risk_level} />
+                    <ReviewPriorityBadge value={s.review_priority} />
                   </div>
                   <h3>{s.medicine}</h3>
                   <p>{s.symptom}</p>
                   <div className="signal-numbers">
                     <div>
-                      <strong>{s.signal_risk_score}</strong>
-                      <span>Risk score</span>
+                      <strong>{s.priority_score}</strong>
+                      <span>Priority score</span>
                     </div>
                     <div>
                       <strong>{s.incident_count}</strong>
-                      <span>Incidents</span>
+                      <span>Report entries</span>
                     </div>
                     <div>
                       <strong>{s.avg_severity}</strong>
-                      <span>Avg. severity</span>
+                      <span>Avg. intensity</span>
                     </div>
                   </div>
-                  <small>{s.critical_cases} critical cases</small>
-                  <p>Safety alert: <Badge value={s.alert_level} /></p>
+                  <small>{s.reported_serious_cases} entries with reported serious outcomes</small>
+                  {s.critical_cases ? <p className="small muted">{s.critical_cases} legacy symptom flags; seriousness was not established by these flags.</p> : null}
                   <details>
                     <summary>Review recommendation</summary>
                     <p>{s.recommendation}</p>
@@ -112,8 +113,8 @@ export default function Safety() {
               ))}
             </div>
             <div className="chart-heading">
-              <h3>Risk score by medicine and symptom</h3>
-              <p>Relative scores help prioritize investigation.</p>
+              <h3>Review priority score by medicine and symptom</h3>
+              <p>Scores rank reported patterns for investigation.</p>
             </div>
             <Suspense fallback={<Loading />}>
               <SignalChart signals={signals.data} />
