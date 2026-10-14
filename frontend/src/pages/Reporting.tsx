@@ -65,6 +65,10 @@ export default function Reporting() {
   const [draft, setDraft] = useState<ReportDraft>(initial);
   const [step, setStep] = useState(0);
   const [error, setError] = useState("");
+  const [customSymptoms, setCustomSymptoms] = useState<string[]>([]);
+  const [customConditions, setCustomConditions] = useState<string[]>([]);
+  const [symptomName, setSymptomName] = useState("");
+  const [conditionName, setConditionName] = useState("");
   const cache = useQueryClient();
   const meds = useQuery({
     queryKey: ["medicines"],
@@ -95,6 +99,30 @@ export default function Reporting() {
   });
   const patch = (p: Partial<ReportDraft>) =>
     setDraft((d) => ({ ...d, ...p }));
+  function addObservation(kind: "symptom" | "condition") {
+    const entered = (kind === "symptom" ? symptomName : conditionName).trim().replace(/\s+/g, " ");
+    if (entered.length < 2) {
+      setError("Enter at least two characters for the observation.");
+      return;
+    }
+    setError("");
+    if (kind === "symptom") {
+      const existing = [...symptoms, ...customSymptoms].find((s) => s.toLowerCase() === entered.toLowerCase());
+      const name = existing ?? entered;
+      if (!existing) setCustomSymptoms((items) => [...items, name]);
+      if (!draft.symptoms.some((s) => s.name === name))
+        patch({ symptoms: [...draft.symptoms, { name, onset_minutes: "", is_critical: false }] });
+      setSymptomName("");
+    } else {
+      const existing = [...conditions, ...customConditions].find((c) => c.toLowerCase() === entered.toLowerCase());
+      const name = existing ?? entered;
+      if (!existing) setCustomConditions((items) => [...items, name]);
+      if (!draft.patient_demographics.pre_existing_conditions.includes(name))
+        patch({ patient_demographics: { ...draft.patient_demographics,
+          pre_existing_conditions: [...draft.patient_demographics.pre_existing_conditions, name] } });
+      setConditionName("");
+    }
+  }
   function next() {
     setError("");
     if (step === 0 && (!draft.medicine_id || !draft.reporter_type)) {
@@ -148,6 +176,10 @@ export default function Reporting() {
               submit.reset();
               setDraft(initial);
               setStep(0);
+              setCustomSymptoms([]);
+              setCustomConditions([]);
+              setSymptomName("");
+              setConditionName("");
             }}
           >
             Start another report
@@ -343,7 +375,7 @@ export default function Reporting() {
                   <legend>Pre-existing conditions</legend>
                   <p className="small muted">Leave unchecked if none apply.</p>
                   <div className="checkbox-grid">
-                    {conditions.map((c) => (
+                    {[...conditions, ...customConditions].map((c) => (
                       <label className="check-label" key={c}>
                         <input
                           type="checkbox"
@@ -371,6 +403,12 @@ export default function Reporting() {
                       </label>
                     ))}
                   </div>
+                  <div className="form-grid">
+                    <label>Other pre-existing condition
+                      <input value={conditionName} maxLength={100} onChange={(e) => setConditionName(e.target.value)} placeholder="Enter a condition not listed above" />
+                    </label>
+                    <button className="secondary" type="button" onClick={() => addObservation("condition")}>Add condition</button>
+                  </div>
                 </fieldset>
               </>
             ) : step === 2 ? (
@@ -378,7 +416,7 @@ export default function Reporting() {
                 <fieldset>
                   <legend>Observed symptoms</legend>
                   <div className="symptom-pills">
-                    {symptoms.map((s) => (
+                    {[...symptoms, ...customSymptoms].map((s) => (
                       <label
                         className={`symptom-pill ${draft.symptoms.some((x) => x.name === s) ? "selected" : ""}`}
                         key={s}
@@ -404,6 +442,12 @@ export default function Reporting() {
                         {s}
                       </label>
                     ))}
+                  </div>
+                  <div className="form-grid">
+                    <label>Other observed symptom
+                      <input value={symptomName} maxLength={100} onChange={(e) => setSymptomName(e.target.value)} placeholder="Enter a symptom not listed above" />
+                    </label>
+                    <button className="secondary" type="button" onClick={() => addObservation("symptom")}>Add symptom</button>
                   </div>
                 </fieldset>
                 {draft.symptoms.map((s, i) => (
