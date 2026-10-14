@@ -43,7 +43,7 @@ type ReportDraft = Omit<AdverseReport, "patient_demographics" | "symptoms" | "se
     gender: string;
     pre_existing_conditions: string[];
   };
-  symptoms: Array<{ name: string; onset_minutes: number | ""; is_critical: boolean }>;
+  symptoms: Array<{ name: string; onset_minutes: number | null | ""; is_critical: boolean }>;
   severity_score: number | "";
 };
 const initial: ReportDraft = {
@@ -454,13 +454,13 @@ export default function Reporting() {
                   <div className="symptom-detail" key={s.name}>
                     <strong>{s.name}</strong>
                     <label>
-                      Onset (minutes)
+                      Onset (minutes after medicine use)
                       <input
-                        required
+                        required={s.onset_minutes !== null}
+                        disabled={s.onset_minutes === null}
                         type="number"
                         min="0"
-                        max="2880"
-                        value={s.onset_minutes}
+                        value={s.onset_minutes ?? ""}
                         onChange={(e) =>
                           patch({
                             symptoms: draft.symptoms.map((v, j) =>
@@ -474,6 +474,12 @@ export default function Reporting() {
                           })
                         }
                       />
+                    </label>
+                    <label className="check-label">
+                      <input type="checkbox" checked={s.onset_minutes === null}
+                        onChange={(e) => patch({ symptoms: draft.symptoms.map((v, j) => j === i
+                          ? { ...v, onset_minutes: e.target.checked ? null : "" } : v) })} />
+                      Onset unknown
                     </label>
                     <label className="check-label">
                       <input
@@ -559,7 +565,7 @@ export default function Reporting() {
                       {draft.symptoms
                         .map(
                           (s) =>
-                            `${s.name} (${s.onset_minutes} min${s.is_critical ? ", critical" : ""})`,
+                            `${s.name} (${s.onset_minutes === null ? "onset unknown" : `${s.onset_minutes} min after medicine use`}${s.is_critical ? ", critical" : ""})`,
                         )
                         .join("; ")}
                     </dd>

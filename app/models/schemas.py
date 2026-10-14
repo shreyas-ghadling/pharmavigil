@@ -13,7 +13,7 @@ from app.utils.exceptions import InvalidSeverityScoreError
 class SymptomSchema(BaseModel):
     """Schema representing an individual clinical symptom."""
     name: str = Field(..., min_length=2, max_length=100, description="Name of the symptom")
-    onset_minutes: int = Field(..., ge=0, description="Minutes from drug administration to symptom onset")
+    onset_minutes: Optional[int] = Field(..., ge=0, description="Minutes after medicine use, or null when onset is unknown")
     is_critical: bool = Field(default=False, description="Flag indicating if the symptom is medically critical")
 
 

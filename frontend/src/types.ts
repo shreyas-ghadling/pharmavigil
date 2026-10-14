@@ -90,7 +90,7 @@ export interface Overview {
 }
 export interface Symptom {
   name: string;
-  onset_minutes: number;
+  onset_minutes: number | null;
   is_critical: boolean;
 }
 export interface AdverseReport {
