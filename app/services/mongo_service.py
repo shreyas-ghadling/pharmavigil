@@ -258,28 +258,23 @@ class MongoService:
             {"$set": review, "$push": {"history": review}}, upsert=True)
         return review
 
-    def search_clinical_notes_text(self, search_query: str, limit: int = 20) -> List[Dict[str, Any]]:
-        """
-        Executes Section 6.4 MongoDB Text Search Index:
-        Retrieves doctor free-text notes matching search terms without NLP library overhead.
-        Falls back cleanly to case-insensitive regex if text index is rebuilding.
-        """
-        if not search_query or not search_query.strip():
-            return self.get_adverse_reports(limit=limit)
-
+    def search_clinical_reports(self, search_query: str, page: int = 1, page_size: int = 20) -> Dict[str, Any]:
+        """Literal case-insensitive phrase search, with the same semantics on every deployment."""
+        import re
+        term = search_query.strip()
+        if len(term) > 200 or page < 1 or not 1 <= page_size <= 100:
+            raise ValueError('Invalid clinical search parameters.')
+        query = {'$or': [{field: {'$regex': re.escape(term), '$options': 'i'}}
+                         for field in ('clinical_notes', 'symptoms.name', 'medicine_name', 'batch_number', 'report_id')]} if term else {}
         collection = mongo_client.get_adverse_reports_collection()
-        try:
-            # 1. Native Full-Text Search with textScore relevance ranking
-            cursor = collection.find(
-                {"$text": {"$search": search_query.strip()}},
-                {"score": {"$meta": "textScore"}, "_id": 0}
-            ).sort([("score", {"$meta": "textScore"})]).limit(limit)
-            return list(cursor)
-        except Exception:
-            # 2. Fallback regex query
-            regex_query = {"clinical_notes": {"$regex": search_query.strip(), "$options": "i"}}
-            cursor = collection.find(regex_query, {"_id": 0}).limit(limit)
-            return list(cursor)
+        total = collection.count_documents(query, maxTimeMS=5000)
+        items = list(collection.find(query, {'_id': 0}).sort([('reported_at', -1), ('report_id', 1)])
+                     .skip((page - 1) * page_size).limit(page_size).max_time_ms(5000))
+        return {'items': items, 'total': total, 'page': page, 'page_size': page_size}
+
+    def search_clinical_notes_text(self, search_query: str, limit: int = 20) -> List[Dict[str, Any]]:
+        """Compatibility helper for callers that need the first page only."""
+        return self.search_clinical_reports(search_query, page_size=limit)['items']
 
     def get_symptom_frequency_distribution(self) -> List[Dict[str, Any]]:
         """Aggregates most frequent symptoms across the entire system."""

@@ -305,8 +305,8 @@ def review_pattern(payload: PatternReview, user=Depends(access(ADMIN))):
 
 
 @app.get("/api/clinical-search")
-def search(q: str = Query("", max_length=200), user=Depends(access(ADMIN))):
-    return mongo_service.search_clinical_notes_text(q)
+def search(q: str = Query("", max_length=200), page: int = Query(1, ge=1), user=Depends(access(ADMIN))):
+    return mongo_service.search_clinical_reports(q, page)
 
 
 @app.get("/api/case-reviews")

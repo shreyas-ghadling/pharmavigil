@@ -23,6 +23,7 @@ export default function Safety() {
   const [frequency, setFrequency] = useState(2);
   const [days, setDays] = useState(0);
   const [q, setQ] = useState("");
+  const [page, setPage] = useState(1);
   const [search, setSearch] = useState<string | null>(null);
   const signals = useQuery({
     queryKey: ["signals", severity, frequency, days],
@@ -33,10 +34,10 @@ export default function Safety() {
     enabled: !clinicalView && !caseView,
   });
   const clinical = useQuery({
-    queryKey: ["clinical-search", search],
+    queryKey: ["clinical-search", search, page],
     queryFn: () =>
-      api<ClinicalReport[]>(
-        `/clinical-search?q=${encodeURIComponent(search ?? "")}`,
+      api<{ items: ClinicalReport[]; total: number; page_size: number }>(
+        `/clinical-search?q=${encodeURIComponent(search ?? "")}&page=${page}`,
       ),
     enabled: clinicalView && search !== null,
   });
@@ -142,14 +143,15 @@ export default function Safety() {
         )}
       </Panel> : null}
       {clinicalView ? <Panel
-        title="Search clinical notes"
-        description="Find reports by symptoms or terms in the clinical narrative."
+        title="Search clinical reports"
+        description="Search a literal phrase across notes, symptoms, medicine names, batch numbers, and report IDs. Matching ignores letter case. Leave the search empty to browse all reports."
       >
         <form
           className="table-toolbar"
           onSubmit={(e) => {
             e.preventDefault();
             setSearch(q);
+            setPage(1);
           }}
         >
           <label className="search-input">
@@ -162,14 +164,14 @@ export default function Safety() {
               placeholder="Try hypotension, dizziness, or arrhythmia"
             />
           </label>
-          <button className="primary">Search notes</button>
+          <button className="primary">Search reports</button>
         </form>
         {clinical.isFetching ? (
           <Loading />
         ) : clinical.error ? (
           <Notice>{clinical.error.message}</Notice>
-        ) : clinical.data?.length ? (
-          clinical.data.map((r) => (
+        ) : clinical.data?.items.length ? (
+          clinical.data.items.map((r) => (
             <details className="clinical-result" key={r.report_id}>
               <summary>
                 <strong>{r.medicine_name}</strong>
@@ -200,6 +202,11 @@ export default function Safety() {
             Enter a term to search, or leave it empty to review recent reports.
           </div>
         )}
+        {clinical.data && !clinical.isFetching && !clinical.error ? <div className="button-row">
+          <button className="secondary" disabled={page === 1} onClick={() => setPage((p) => p - 1)}>Previous</button>
+          <span>Page {page} · {clinical.data.total} matching reports</span>
+          <button className="secondary" disabled={page * clinical.data.page_size >= clinical.data.total} onClick={() => setPage((p) => p + 1)}>Next</button>
+        </div> : null}
       </Panel> : null}
     </>
   );
