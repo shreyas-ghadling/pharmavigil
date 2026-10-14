@@ -24,3 +24,16 @@ def test_batch_totals_are_not_repeated_for_each_hospital():
     assert sum(int(r['historically_distributed_units'] or 0) for r in output) == 50
     deliveries = [r for r in output if r['record_type'] == 'HOSPITAL_DELIVERY']
     assert all(r['affected_hospitals'] == '' and r['distributed_quantity_at_recall_initiation'] == '' for r in deliveries)
+
+
+def test_export_does_not_invent_missing_recall_or_central_stock_facts():
+    output = rows([{'batch_number': 'BCH-OLD-1', 'affected_reason': 'EXPIRED',
+        'hospital_name': 'Hospital', 'historically_distributed_units': 7}],
+        [{'batch_number': 'BCH-OTHER-1', 'reason': 'Known reason', 'total_units_recalled': 0}])
+    expired = next(r for r in output if r['record_type'] == 'HOSPITAL_DELIVERY')
+    assert expired['reason'] == expired['recalled_by'] == expired['recall_stage'] == ''
+    assert expired['recorded_central_balance'] == ''
+    assert not any(r['record_type'] == 'CENTRAL_BALANCE' for r in output)
+    audit = next(r for r in output if r['record_type'] == 'RECALL_INITIATION')
+    assert audit['hospital_name'] == audit['historically_distributed_units'] == ''
+    assert audit['distributed_quantity_at_recall_initiation'] == '0'

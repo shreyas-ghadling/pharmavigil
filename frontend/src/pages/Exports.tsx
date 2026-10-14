@@ -77,6 +77,7 @@ export default function Exports() {
         Downloads reflect the data available at the time of generation.
         CSV record_type identifies each row. Batch totals appear only on recall initiation rows.
         Delivery quantities and central balances are separate measures. Compare quantities only within the same stock unit.
+        Blank cells mean not recorded or not applicable to that row, rather than zero or a confirmed outcome.
       </p>
     </>
   );

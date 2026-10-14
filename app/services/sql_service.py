@@ -348,6 +348,8 @@ class SQLService:
                 total_units_recalled,
                 total_units_recalled AS distributed_quantity_at_initiation,
                 'INITIATED' AS recall_stage,
+                (SELECT m.commercial_name FROM medicines m JOIN batches b ON m.medicine_id=b.medicine_id
+                 WHERE b.batch_number=recall_audit.batch_number) AS commercial_name,
                 (SELECT m.stock_unit FROM medicines m JOIN batches b ON m.medicine_id=b.medicine_id
                  WHERE b.batch_number=recall_audit.batch_number) AS stock_unit,
                 recalled_at
