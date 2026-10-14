@@ -106,3 +106,36 @@ def test_import_errors_return_no_saved_rows(client,monkeypatch):
 def test_missing_api_route_does_not_serve_spa(client):
     assert client.get("/api/not-a-route").status_code == 404
     assert client.get("/inventory").status_code == 200
+
+
+def reporting_payload():
+    return {
+        "medicine_id": 101, "medicine_name": "Cardiomax", "batch_number": None,
+        "reporter_type": "PATIENT", "patient_demographics": {"age": 0, "gender": "Female"},
+        "symptoms": [{"name": "Nausea", "onset_minutes": 0}], "severity_score": 1,
+    }
+
+
+@pytest.mark.parametrize("field", ["reporter_type", "age", "gender", "onset_minutes", "severity_score"])
+def test_clinical_fields_are_not_guessed_when_missing(client, field):
+    payload = reporting_payload()
+    if field in {"age", "gender"}:
+        payload["patient_demographics"].pop(field)
+    elif field == "onset_minutes":
+        payload["symptoms"][0].pop(field)
+    else:
+        payload.pop(field)
+    response = client.post("/api/adverse-reports", headers=sign_in(client, "doctor"), json=payload)
+    assert response.status_code == 422
+    assert any(field in item["field"] for item in response.json()["fields"])
+
+
+def test_explicit_zero_age_onset_and_unknown_batch_are_accepted(client, monkeypatch):
+    recorded = []
+    monkeypatch.setattr(server.sql_service, "get_all_medicines", lambda: [{"medicine_id": 101, "commercial_name": "Cardiomax"}])
+    monkeypatch.setattr(server.mongo_service, "insert_adverse_report", lambda data: recorded.append(data) or "ADR-TEST")
+    response = client.post("/api/adverse-reports", headers=sign_in(client, "doctor"), json=reporting_payload())
+    assert response.status_code == 201
+    assert recorded[0]["batch_number"] is None
+    assert recorded[0]["patient_demographics"]["age"] == 0
+    assert recorded[0]["symptoms"][0]["onset_minutes"] == 0

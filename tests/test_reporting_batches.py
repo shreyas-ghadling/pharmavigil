@@ -18,7 +18,7 @@ def test_flagged_batch_can_be_reported_but_not_dispatched(status):
     assert batch in {row["batch_number"] for row in sql_service.get_batches(101)}
     assert batch not in {row["batch_number"] for row in sql_service.get_batches(101, only_active=True)}
     report_id = mongo_service.insert_adverse_report({
-        "medicine_id": 101, "medicine_name": "Cardiomax", "batch_number": batch,
+        "medicine_id": 101, "medicine_name": "Cardiomax", "batch_number": batch, "reporter_type": "PATIENT",
         "patient_demographics": {"age": 40, "gender": "Female"},
         "symptoms": [{"name": "Nausea", "onset_minutes": 60}], "severity_score": 2,
     })
@@ -30,7 +30,7 @@ def test_flagged_batch_can_be_reported_but_not_dispatched(status):
 
 def test_unknown_batch_report_keeps_null_and_verified_medicine():
     report_id = mongo_service.insert_adverse_report({
-        "medicine_id": 101, "medicine_name": "Untrusted name", "batch_number": None,
+        "medicine_id": 101, "medicine_name": "Untrusted name", "batch_number": None, "reporter_type": "PATIENT",
         "patient_demographics": {"age": 40, "gender": "Female"},
         "symptoms": [{"name": "Nausea", "onset_minutes": 60}], "severity_score": 2,
     })
@@ -42,7 +42,7 @@ def test_unknown_batch_report_keeps_null_and_verified_medicine():
 def test_unknown_batch_does_not_allow_unknown_medicine():
     with pytest.raises(ValueError, match="registered medicine"):
         mongo_service.insert_adverse_report({
-            "medicine_id": 999999, "medicine_name": "Unknown", "batch_number": None,
+            "medicine_id": 999999, "medicine_name": "Unknown", "batch_number": None, "reporter_type": "PATIENT",
             "patient_demographics": {"age": 40, "gender": "Female"},
             "symptoms": [{"name": "Nausea", "onset_minutes": 60}], "severity_score": 2,
         })

@@ -66,6 +66,7 @@ class TestPydanticValidation:
             "batch_number": "BCH-PCM-9042",
             "medicine_id": 101,
             "medicine_name": "Cardiomax",
+            "reporter_type": "PATIENT",
             "patient_demographics": {"age": 30, "gender": "Male"},
             "symptoms": [{"name": "Nausea", "onset_minutes": 10}],
             "severity_score": 6  # Out of bounds!
@@ -83,8 +84,9 @@ class TestPydanticValidation:
             "batch_number": "BCH-PCM-9042",
             "medicine_id": 101,
             "medicine_name": "Cardiomax",
+            "reporter_type": "PATIENT",
             "patient_demographics": {"age": -5, "gender": "Female"},
-            "symptoms": [{"name": "Nausea"}],
+            "symptoms": [{"name": "Nausea", "onset_minutes": 10}],
             "severity_score": 2
         }
         with pytest.raises(ValidationError):
@@ -94,8 +96,9 @@ class TestPydanticValidation:
             "batch_number": "BCH-PCM-9042",
             "medicine_id": 101,
             "medicine_name": "Cardiomax",
+            "reporter_type": "PATIENT",
             "patient_demographics": {"age": 140, "gender": "Female"},
-            "symptoms": [{"name": "Nausea"}],
+            "symptoms": [{"name": "Nausea", "onset_minutes": 10}],
             "severity_score": 2
         }
         with pytest.raises(ValidationError):
@@ -107,8 +110,9 @@ class TestPydanticValidation:
             "batch_number": "INVALID_BATCH_FORMAT_123",
             "medicine_id": 101,
             "medicine_name": "Cardiomax",
+            "reporter_type": "PATIENT",
             "patient_demographics": {"age": 40, "gender": "Male"},
-            "symptoms": [{"name": "Headache"}],
+            "symptoms": [{"name": "Headache", "onset_minutes": 10}],
             "severity_score": 2
         }
         with pytest.raises(ValidationError):

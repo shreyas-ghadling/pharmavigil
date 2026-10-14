@@ -13,14 +13,14 @@ from app.utils.exceptions import InvalidSeverityScoreError
 class SymptomSchema(BaseModel):
     """Schema representing an individual clinical symptom."""
     name: str = Field(..., min_length=2, max_length=100, description="Name of the symptom")
-    onset_minutes: int = Field(default=0, ge=0, description="Minutes from drug administration to symptom onset")
+    onset_minutes: int = Field(..., ge=0, description="Minutes from drug administration to symptom onset")
     is_critical: bool = Field(default=False, description="Flag indicating if the symptom is medically critical")
 
 
 class PatientDemographicsSchema(BaseModel):
     """Schema representing patient metadata."""
     age: int = Field(..., ge=0, le=120, description="Patient age in years [0, 120]")
-    gender: str = Field(..., description="Gender (Female, Male, Non-binary, Other)")
+    gender: Literal["Female", "Male", "Non-binary", "Other"] = Field(..., description="Reported patient gender")
     pre_existing_conditions: List[str] = Field(default_factory=list, description="List of pre-existing comorbidities")
 
 
@@ -34,7 +34,7 @@ class AdverseReportCreate(BaseModel):
     medicine_id: int = Field(..., gt=0, description="Referenced Medicine ID")
     medicine_name: str = Field(..., min_length=2, max_length=150, description="Commercial medicine name")
     reporter_type: Literal["HOSPITAL_DOCTOR", "PATIENT", "PHARMACIST"] = Field(
-        default="HOSPITAL_DOCTOR",
+        ...,
         description="Source of the adverse event report"
     )
     patient_demographics: PatientDemographicsSchema

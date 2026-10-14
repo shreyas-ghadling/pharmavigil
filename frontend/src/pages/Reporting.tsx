@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft,
@@ -37,25 +37,32 @@ const conditions = [
   "Chronic Kidney Disease",
   "Neuropathic Pain",
 ];
-const initial: AdverseReport = {
+type ReportDraft = Omit<AdverseReport, "patient_demographics" | "symptoms" | "severity_score"> & {
+  patient_demographics: {
+    age: number | "";
+    gender: string;
+    pre_existing_conditions: string[];
+  };
+  symptoms: Array<{ name: string; onset_minutes: number | ""; is_critical: boolean }>;
+  severity_score: number | "";
+};
+const initial: ReportDraft = {
   medicine_id: 0,
   medicine_name: "",
   batch_number: "",
-  reporter_type: "HOSPITAL_DOCTOR",
+  reporter_type: "",
   hospital_id: null,
   patient_demographics: {
-    age: 45,
-    gender: "Female",
+    age: "",
+    gender: "",
     pre_existing_conditions: [],
   },
-  symptoms: [
-    { name: "Severe Dizziness", onset_minutes: 30, is_critical: false },
-  ],
-  severity_score: 3,
+  symptoms: [],
+  severity_score: "",
   clinical_notes: "",
 };
 export default function Reporting() {
-  const [draft, setDraft] = useState<AdverseReport>(initial);
+  const [draft, setDraft] = useState<ReportDraft>(initial);
   const [step, setStep] = useState(0);
   const [error, setError] = useState("");
   const cache = useQueryClient();
@@ -86,20 +93,14 @@ export default function Reporting() {
       void cache.invalidateQueries({ queryKey: ["signals"] });
     },
   });
-  useEffect(() => {
-    if (meds.data?.length && !draft.medicine_id) {
-      const med = meds.data[0];
-      setDraft((d) => ({
-        ...d,
-        medicine_id: med.medicine_id,
-        medicine_name: med.commercial_name,
-      }));
-    }
-  }, [meds.data, draft.medicine_id]);
-  const patch = (p: Partial<AdverseReport>) =>
+  const patch = (p: Partial<ReportDraft>) =>
     setDraft((d) => ({ ...d, ...p }));
   function next() {
     setError("");
+    if (step === 0 && (!draft.medicine_id || !draft.reporter_type)) {
+      setError("Choose the medicine and reporter type.");
+      return;
+    }
     if (
       step === 0 &&
       draft.batch_number !== null &&
@@ -109,8 +110,12 @@ export default function Reporting() {
       setError("Choose a batch for this medicine.");
       return;
     }
-    if (step === 2 && !draft.symptoms.length) {
-      setError("Select at least one observed symptom.");
+    if (step === 1 && (draft.patient_demographics.age === "" || !draft.patient_demographics.gender)) {
+      setError("Enter the patient's age and select a gender.");
+      return;
+    }
+    if (step === 2 && (!draft.symptoms.length || draft.severity_score === "" || draft.symptoms.some((s) => s.onset_minutes === ""))) {
+      setError("Select at least one symptom, enter its onset, and choose a severity.");
       return;
     }
     setStep((s) => Math.min(3, s + 1));
@@ -199,18 +204,19 @@ export default function Reporting() {
                   Medicine
                   <select
                     required
-                    value={draft.medicine_id}
+                    value={draft.medicine_id || ""}
                     onChange={(e) => {
                       const m = meds.data!.find(
                         (m) => m.medicine_id === Number(e.target.value),
-                      )!;
+                      );
                       patch({
-                        medicine_id: m.medicine_id,
-                        medicine_name: m.commercial_name,
+                        medicine_id: m?.medicine_id ?? 0,
+                        medicine_name: m?.commercial_name ?? "",
                         batch_number: "",
                       });
                     }}
                   >
+                    <option value="">Select a medicine</option>
                     {meds.data!.map((m) => (
                       <option value={m.medicine_id} key={m.medicine_id}>
                         {m.commercial_name} — {m.generic_name} {m.strength}
@@ -223,12 +229,12 @@ export default function Reporting() {
                   Production batch
                   <select
                     required={draft.batch_number !== null}
-                    disabled={draft.batch_number === null}
+                    disabled={!draft.medicine_id || draft.batch_number === null}
                     value={draft.batch_number ?? ""}
                     onChange={(e) => patch({ batch_number: e.target.value })}
                   >
                     <option value="">
-                      {draft.batch_number === null ? "Batch unknown" : batches.isPending
+                      {!draft.medicine_id ? "Select a medicine first" : draft.batch_number === null ? "Batch unknown" : batches.isFetching
                         ? "Loading batches…"
                         : "Select a batch"}
                     </option>
@@ -260,9 +266,11 @@ export default function Reporting() {
                 <label>
                   Reporter type
                   <select
+                    required
                     value={draft.reporter_type}
                     onChange={(e) => patch({ reporter_type: e.target.value })}
                   >
+                    <option value="">Select reporter type</option>
                     <option value="HOSPITAL_DOCTOR">Hospital doctor</option>
                     <option value="PATIENT">Patient</option>
                     <option value="PHARMACIST">Pharmacist</option>
@@ -304,7 +312,7 @@ export default function Reporting() {
                         patch({
                           patient_demographics: {
                             ...draft.patient_demographics,
-                            age: Number(e.target.value),
+                            age: e.target.value === "" ? "" : Number(e.target.value),
                           },
                         })
                       }
@@ -313,6 +321,7 @@ export default function Reporting() {
                   <label>
                     Gender
                     <select
+                      required
                       value={draft.patient_demographics.gender}
                       onChange={(e) =>
                         patch({
@@ -323,6 +332,7 @@ export default function Reporting() {
                         })
                       }
                     >
+                      <option value="">Select gender</option>
                       {["Female", "Male", "Non-binary", "Other"].map((g) => (
                         <option key={g}>{g}</option>
                       ))}
@@ -383,13 +393,8 @@ export default function Reporting() {
                                     ...draft.symptoms,
                                     {
                                       name: s,
-                                      onset_minutes: 30,
-                                      is_critical: [
-                                        "Acute Hypotension",
-                                        "Arrhythmia",
-                                        "Anaphylaxis",
-                                        "Seizure",
-                                      ].includes(s),
+                                      onset_minutes: "",
+                                      is_critical: false,
                                     },
                                   ]
                                 : draft.symptoms.filter((x) => x.name !== s),
@@ -418,7 +423,7 @@ export default function Reporting() {
                               j === i
                                 ? {
                                     ...v,
-                                    onset_minutes: Number(e.target.value),
+                                    onset_minutes: e.target.value === "" ? "" : Number(e.target.value),
                                   }
                                 : v,
                             ),
@@ -445,16 +450,19 @@ export default function Reporting() {
                   </div>
                 ))}
                 <label>
-                  Severity: {draft.severity_score}/5
-                  <input
-                    type="range"
-                    min="1"
-                    max="5"
+                  Severity
+                  <select
+                    required
                     value={draft.severity_score}
                     onChange={(e) =>
-                      patch({ severity_score: Number(e.target.value) })
+                      patch({ severity_score: e.target.value === "" ? "" : Number(e.target.value) })
                     }
-                  />
+                  >
+                    <option value="">Select severity</option>
+                    {[1, 2, 3, 4, 5].map((score) => (
+                      <option key={score} value={score}>{score}/5</option>
+                    ))}
+                  </select>
                   <span className="range-labels">
                     <span>Mild discomfort</span>
                     <span>Life-threatening</span>
