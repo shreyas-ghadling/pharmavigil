@@ -106,6 +106,7 @@ export default function Safety() {
                     </div>
                   </div>
                   <small>{s.reported_serious_cases} entries with reported serious outcomes</small>
+                  {s.seriousness_unknown_entries ? <p className="small muted">Seriousness is unknown or unrecorded in {s.seriousness_unknown_entries} entries.</p> : null}
                   {s.critical_cases ? <p className="small muted">{s.critical_cases} legacy symptom flags; seriousness was not established by these flags.</p> : null}
                   <details>
                     <summary>Review recommendation</summary>

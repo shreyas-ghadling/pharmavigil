@@ -41,7 +41,7 @@ const conditions = [
 const seriousOutcomes = [
   ["DEATH", "Death"],
   ["LIFE_THREATENING", "Life-threatening at the time of the event"],
-  ["HOSPITALIZATION", "Hospital admission or prolonged hospitalization"],
+  ["HOSPITALIZATION", "Inpatient hospital admission or prolonged hospitalization"],
   ["DISABILITY", "Persistent or significant disability"],
   ["CONGENITAL_ANOMALY", "Congenital anomaly or birth defect"],
   ["MEDICALLY_IMPORTANT", "Other medically important event"],

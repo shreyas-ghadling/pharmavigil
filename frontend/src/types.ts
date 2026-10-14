@@ -53,6 +53,7 @@ export interface Signal {
   priority_score: number;
   review_priority: "URGENT" | "HIGH" | "ROUTINE";
   reported_serious_cases: number;
+  seriousness_unknown_entries: number;
 }
 export interface Recall {
   audit_id: number;

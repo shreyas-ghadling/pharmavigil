@@ -22,6 +22,7 @@ def test_average_filter_preserves_low_intensity_reports():
     assert baseline["avg_severity"] == filtered["avg_severity"] == 3
     assert filtered["priority_score"] == 6
     assert filtered["reported_serious_cases"] == 1
+    assert filtered["seriousness_unknown_entries"] == 1
     assert filtered["risk_level"] == filtered["alert_level"] == "HIGH"
     assert matching(3.5) == []
 
@@ -34,3 +35,15 @@ def test_legacy_flags_remain_separate_from_serious_outcomes():
     row = next(row for row in mongo_service.execute_safety_signal_detection_pipeline(1, 1) if row["medicine"] == medicine)
     assert row["critical_cases"] == 1
     assert row["reported_serious_cases"] == 0
+    assert row["seriousness_unknown_entries"] == 1
+
+
+def test_no_outcomes_reported_is_distinct_from_unknown_seriousness():
+    medicine = "Known-outcomes-" + uuid.uuid4().hex
+    mongo_client.get_adverse_reports_collection().insert_one({
+        "report_id": uuid.uuid4().hex, "medicine_name": medicine, "severity_score": 2,
+        "seriousness_criteria": [], "symptoms": [{"name": "Nausea", "is_critical": False}],
+    })
+    row = next(row for row in mongo_service.execute_safety_signal_detection_pipeline(1, 1) if row["medicine"] == medicine)
+    assert row["reported_serious_cases"] == 0
+    assert row["seriousness_unknown_entries"] == 0

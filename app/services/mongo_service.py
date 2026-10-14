@@ -96,6 +96,9 @@ class MongoService:
                     "reported_serious_cases": {"$sum": {"$cond": [
                         {"$gt": [{"$size": {"$ifNull": ["$seriousness_criteria", []]}}, 0]}, 1, 0
                     ]}},
+                    "seriousness_unknown_entries": {"$sum": {"$cond": [
+                        {"$eq": [{"$ifNull": ["$seriousness_criteria", None]}, None]}, 1, 0
+                    ]}},
                     "critical_cases": {
                         "$sum": {
                             "$cond": ["$symptoms.is_critical", 1, 0]
@@ -120,6 +123,7 @@ class MongoService:
                     "avg_severity": {"$round": ["$avg_severity", 2]},
                     "critical_cases": 1,
                     "reported_serious_cases": 1,
+                    "seriousness_unknown_entries": 1,
                     "signal_risk_score": {
                         "$round": [
                             {"$multiply": ["$incident_count", "$avg_severity"]},
