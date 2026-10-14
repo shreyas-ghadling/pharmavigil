@@ -14,7 +14,7 @@ import {
   Panel,
   Table,
 } from "../components/ui";
-import type { Batch, Quarantine, Recall } from "../types";
+import type { Batch, Quarantine, Recall, Stock } from "../types";
 export default function Recalls() {
   const { user } = useAuth();
   const [params] = useSearchParams();
@@ -39,6 +39,11 @@ export default function Recalls() {
     queryFn: () => api<Quarantine[]>("/quarantine"),
     enabled: stockView,
   });
+  const central = useQuery({
+    queryKey: ["affected-central-stock"],
+    queryFn: () => api<Stock[]>("/affected-central-stock"),
+    enabled: stockView,
+  });
   const mutation = useMutation({
     mutationFn: () =>
       api<{ affected_hospitals: number; distributed_quantity_at_initiation: number; stock_unit: string }>(
@@ -55,6 +60,7 @@ export default function Recalls() {
       for (const key of [
         "recalls",
         "quarantine",
+        "affected-central-stock",
         "recall-batches",
         "inventory",
         "overview",
@@ -125,6 +131,16 @@ export default function Recalls() {
             Review recall
           </button>
         </form>
+      </Panel> : null}
+      {stockView ? <Panel title="Affected central stock"
+        description="Recorded central balances for recalled or expired batches, including batches with no hospital deliveries. These are ledger balances, not confirmed physical counts or recovered stock."
+      >
+        {central.isPending ? <Loading /> : central.error ? <Notice>{central.error.message}</Notice> :
+          <Table rows={central.data} rowKey={(b) => b.batch_number} columns={[
+            { title: "Medicine / batch", render: (b) => <>{b.commercial_name}<small>{b.batch_number}</small></> },
+            { title: "Reason flagged", render: (b) => <Badge value={b.recall_status} /> },
+            { title: "Recorded central balance", render: (b) => <>{number(b.current_stock)} {b.stock_unit}s{b.has_inferred_opening_balance ? <small>Includes inferred legacy opening balance</small> : null}</> },
+          ]} empty="No affected central batches are recorded." />}
       </Panel> : null}
       {stockView ? <Panel
         title="Affected hospital deliveries"

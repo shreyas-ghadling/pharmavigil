@@ -336,6 +336,11 @@ def quarantine(user=Depends(access(ADMIN))):
     return sql_service.get_high_risk_quarantine_trace()
 
 
+@app.get("/api/affected-central-stock")
+def affected_central_stock(user=Depends(access(ADMIN))):
+    return sql_service.get_affected_central_stock()
+
+
 class Recall(BaseModel):
     batch_number: str = Field(min_length=3)
     reason: str = Field(min_length=5, max_length=255)

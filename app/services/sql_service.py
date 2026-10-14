@@ -324,6 +324,12 @@ class SQLService:
         """
         return mysql_client.execute_query(query)
 
+    def get_affected_central_stock(self) -> List[Dict[str, Any]]:
+        """Recorded central balances for affected batches, including batches never dispatched."""
+        return [dict(row, affected_reason=row['recall_status'])
+                for row in self.get_inventory_stock_overview()
+                if row['recall_status'] in {'RECALLED', 'EXPIRED'}]
+
     def get_recall_audits(self) -> List[Dict[str, Any]]:
         """Retrieves chronological audit log of all emergency recalls."""
         query = """
