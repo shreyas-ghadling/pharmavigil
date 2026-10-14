@@ -71,7 +71,7 @@ export default function Reporting() {
     queryKey: ["batches", draft.medicine_id],
     queryFn: () =>
       api<Batch[]>(
-        `/batches?medicine_id=${draft.medicine_id}&only_active=true`,
+        `/batches?medicine_id=${draft.medicine_id}`,
       ),
     enabled: !!draft.medicine_id,
   });
@@ -105,7 +105,7 @@ export default function Reporting() {
       (!draft.batch_number ||
         !batches.data?.some((b) => b.batch_number === draft.batch_number))
     ) {
-      setError("Choose an active batch for this medicine.");
+      setError("Choose a batch for this medicine.");
       return;
     }
     if (step === 2 && !draft.symptoms.length) {
@@ -175,7 +175,7 @@ export default function Reporting() {
         }
         description={
           [
-            "Choose the medicine and its active production batch.",
+            "Choose the medicine and the batch involved, including expired or recalled batches.",
             "Record relevant demographics without personal identifiers.",
             "Add symptoms, onset, and the severity of the reaction.",
             "Check the details before submitting to the safety team.",
@@ -230,7 +230,9 @@ export default function Reporting() {
                         : "Select a batch"}
                     </option>
                     {batches.data?.map((b) => (
-                      <option key={b.batch_number}>{b.batch_number}</option>
+                      <option key={b.batch_number} value={b.batch_number}>
+                        {b.batch_number} · {b.recall_status.replaceAll("_", " ").toLowerCase()}
+                      </option>
                     ))}
                   </select>
                   {batches.error ? (
@@ -238,7 +240,7 @@ export default function Reporting() {
                   ) : null}
                   {batches.data?.length === 0 ? (
                     <span className="field-error">
-                      No active batches are available for this medicine.
+                      No registered batches are available for this medicine.
                     </span>
                   ) : null}
                 </label>
