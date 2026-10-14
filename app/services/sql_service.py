@@ -119,16 +119,21 @@ class SQLService:
                 END AS recall_status,
                 DATEDIFF(b.expiry_date, CURDATE()) AS days_left,
                 COALESCE(SUM(bd.quantity_delivered), 0) AS total_distributed_units,
-                (b.total_units_produced - COALESCE(SUM(bd.quantity_delivered), 0)) AS current_stock
+                COALESCE(sr.received, 0) AS total_received_units,
+                COALESCE(sr.inferred, 0) AS has_inferred_opening_balance,
+                (COALESCE(sr.received, 0) - COALESCE(SUM(bd.quantity_delivered), 0)) AS current_stock
             FROM batches b
             JOIN medicines m ON b.medicine_id = m.medicine_id
             JOIN manufacturers mf ON m.manufacturer_id = mf.manufacturer_id
             LEFT JOIN batch_distribution bd ON b.batch_number = bd.batch_number
+            LEFT JOIN (SELECT batch_number, SUM(quantity_received) AS received,
+                       MAX(source_type='LEGACY_OPENING') AS inferred FROM stock_receipts GROUP BY batch_number) sr
+                ON sr.batch_number=b.batch_number
             GROUP BY 
                 b.batch_number, m.commercial_name, m.generic_name, 
                 m.dosage_form, m.strength, mf.company_name, 
                 b.manufacturing_date, b.expiry_date, 
-                b.total_units_produced, b.recall_status
+                b.total_units_produced, b.recall_status, sr.received, sr.inferred
             ORDER BY b.expiry_date ASC;
         """
         return mysql_client.execute_query(query)
@@ -183,7 +188,9 @@ class SQLService:
             )
             domain_batch.validate_for_dispensing()
             cursor.execute("SELECT COALESCE(SUM(quantity_delivered), 0) AS distributed FROM batch_distribution WHERE batch_number = %s", (batch_number,))
-            available = batch_info["total_units_produced"] - cursor.fetchone()["distributed"]
+            distributed = cursor.fetchone()["distributed"]
+            cursor.execute("SELECT COALESCE(SUM(quantity_received),0) AS received FROM stock_receipts WHERE batch_number=%s", (batch_number,))
+            available = cursor.fetchone()["received"] - distributed
             if quantity < 1 or quantity > available:
                 raise ValueError(f"Only {available} units are available for dispatch.")
             cursor.execute(
@@ -191,6 +198,29 @@ class SQLService:
                 (batch_number, hospital_id, quantity, dispatch_date or str(date.today())),
             )
             return cursor.rowcount
+
+    def receive_stock(self, batch_number, quantity, receipt_date, reference, recorded_by):
+        received_on = date.fromisoformat(receipt_date)
+        with mysql_client.get_cursor(dictionary=True) as cursor:
+            cursor.execute("SELECT * FROM batches WHERE batch_number=%s FOR UPDATE", (batch_number,))
+            batch = cursor.fetchone()
+            if not batch:
+                raise ValueError("The selected batch does not exist.")
+            if received_on > date.today() or received_on < batch["manufacturing_date"] or received_on > batch["expiry_date"]:
+                raise ValueError("The selected batch receipt date must be between manufacture and expiry, and cannot be in the future.")
+            cursor.execute("SELECT * FROM stock_receipts WHERE batch_number=%s AND reference=%s", (batch_number, reference))
+            existing = cursor.fetchone()
+            if existing:
+                if existing["quantity_received"] == quantity and existing["receipt_date"] == received_on:
+                    return {"message": "This receipt is already recorded."}
+                raise ValueError("The selected batch receipt reference is already used for a different receipt.")
+            cursor.execute("SELECT COALESCE(SUM(quantity_received),0) AS received FROM stock_receipts WHERE batch_number=%s", (batch_number,))
+            remaining = batch["total_units_produced"] - cursor.fetchone()["received"]
+            if quantity < 1 or quantity > remaining:
+                raise ValueError(f"Only {remaining} additional units can be received for this production batch.")
+            cursor.execute("INSERT INTO stock_receipts (batch_number,quantity_received,receipt_date,reference,source_type,recorded_by) VALUES (%s,%s,%s,%s,'RECEIPT',%s)",
+                           (batch_number, quantity, received_on, reference, recorded_by))
+            return {"message": "Receipt recorded."}
 
     def execute_emergency_recall(
         self,

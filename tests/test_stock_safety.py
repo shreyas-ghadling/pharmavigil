@@ -9,6 +9,7 @@ def test_concurrent_dispatch_cannot_exceed_available_stock():
     batch = "BCH-STOCK-" + uuid.uuid4().hex[:8].upper()
     today = date.today()
     sql_service.insert_batch(batch, 101, today.isoformat(), (today + timedelta(days=365)).isoformat(), 100)
+    sql_service.receive_stock(batch, 100, today.isoformat(), "TEST-RECEIPT", "tester")
     def attempt():
         try:
             sql_service.dispatch_batch_to_hospital(batch, 1, 60)

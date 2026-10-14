@@ -15,10 +15,11 @@ import {
   Table,
 } from "../components/ui";
 import type { Batch, Hospital, Stock } from "../types";
+import StockReceipt from "../components/StockReceipt";
 export default function Inventory() {
   const [params] = useSearchParams();
   const requestedTab = params.get("tab");
-  const tab = requestedTab === "import" || requestedTab === "dispatch" ? requestedTab : "stock";
+  const tab = requestedTab === "import" || requestedTab === "dispatch" || requestedTab === "receive" ? requestedTab : "stock";
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("all");
   const [selected, setSelected] = useState<Stock | null>(null);
@@ -222,13 +223,13 @@ export default function Inventory() {
         </Panel>
       ) : tab === "import" ? (
         <Panel
-          title="Import a shipment"
-          description="Upload a CSV to receive multiple batches in one transaction."
+          title="Register production batches"
+          description="Upload a CSV to register batches. Registration does not add received stock."
         >
           <div className="form-content">
             <div className="upload-box">
               <Upload size={34} />
-              <h3>Select your shipment CSV</h3>
+              <h3>Select your batch-registration CSV</h3>
               <p>UTF-8 CSV · Maximum 2 MB</p>
               <input
                 aria-label="Shipment CSV"
@@ -286,7 +287,7 @@ export default function Inventory() {
             </button>
           </div>
         </Panel>
-      ) : (
+      ) : tab === "receive" ? <StockReceipt /> : (
         <Panel
           title="Dispatch stock"
           description="Send an active batch to a registered hospital."
@@ -387,6 +388,7 @@ export default function Inventory() {
               "Manufactured on": selected.manufacturing_date,
               "Expires on": selected.expiry_date,
               "Units produced": number(selected.total_units_produced),
+              "Recorded receipts": number(selected.total_received_units),
               "Units distributed": number(selected.total_distributed_units),
               "Current stock": number(selected.current_stock),
             }).map(([k, v]) => (
@@ -396,6 +398,7 @@ export default function Inventory() {
               </div>
             ))}
           </dl>
+          {selected.has_inferred_opening_balance ? <Notice>This batch includes an inferred legacy opening balance. It preserves earlier records and is not a verified physical receipt.</Notice> : null}
         </Drawer>
       ) : null}
     </>

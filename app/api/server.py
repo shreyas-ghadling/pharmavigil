@@ -262,6 +262,18 @@ class Dispatch(BaseModel):
     dispatch_date: date
 
 
+class Receipt(BaseModel):
+    batch_number: str
+    quantity: int = Field(gt=0, le=1000000)
+    receipt_date: date
+    reference: str = Field(min_length=3, max_length=100)
+
+
+@app.post("/api/inventory/receipts", status_code=201)
+def receive_stock(payload: Receipt, user=Depends(access(ADMIN, PHARMACIST))):
+    return sql_service.receive_stock(payload.batch_number, payload.quantity, payload.receipt_date.isoformat(), payload.reference.strip(), user["username"])
+
+
 @app.post("/api/inventory/dispatch", status_code=201)
 def dispatch(payload: Dispatch, user=Depends(access(ADMIN, PHARMACIST))):
     sql_service.dispatch_batch_to_hospital(payload.batch_number, payload.hospital_id,

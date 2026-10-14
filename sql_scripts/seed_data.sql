@@ -64,6 +64,12 @@ INSERT INTO hospitals (hospital_id, hospital_name, city, state, contact_phone) V
 ON DUPLICATE KEY UPDATE hospital_name=VALUES(hospital_name);
 
 -- 5. SEED BATCH_DISTRIBUTION (15 Distribution Rows)
+INSERT INTO stock_receipts (batch_number, quantity_received, receipt_date, reference, source_type, recorded_by)
+SELECT batch_number, total_units_produced, manufacturing_date, 'DEMO-OPENING', 'DEMO_OPENING', 'Demo setup'
+FROM batches
+ON DUPLICATE KEY UPDATE reference=VALUES(reference);
+INSERT IGNORE INTO app_schema_migrations(name) VALUES ('stock-receipts-v1');
+
 INSERT INTO batch_distribution (distribution_id, batch_number, hospital_id, quantity_delivered, dispatch_date) VALUES
 (1, 'BCH-PCM-9042', 1, 12000, DATE_SUB(CURDATE(), INTERVAL 150 DAY)),
 (2, 'BCH-PCM-9042', 2, 8500,  DATE_SUB(CURDATE(), INTERVAL 140 DAY)),

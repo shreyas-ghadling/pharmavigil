@@ -9,6 +9,8 @@ USE pharmavigil_db;
 -- Drop tables in reverse foreign key order for clean recreation
 DROP TABLE IF EXISTS recall_audit;
 DROP TABLE IF EXISTS batch_distribution;
+DROP TABLE IF EXISTS stock_receipts;
+DROP TABLE IF EXISTS app_schema_migrations;
 DROP TABLE IF EXISTS batches;
 DROP TABLE IF EXISTS medicines;
 DROP TABLE IF EXISTS manufacturers;
@@ -57,6 +59,21 @@ CREATE TABLE batches (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- 4. HOSPITALS TABLE
+CREATE TABLE app_schema_migrations (name VARCHAR(100) PRIMARY KEY, applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
+
+CREATE TABLE stock_receipts (
+    receipt_id INT AUTO_INCREMENT PRIMARY KEY,
+    batch_number VARCHAR(50) NOT NULL,
+    quantity_received INT NOT NULL,
+    receipt_date DATE NOT NULL,
+    reference VARCHAR(100) NOT NULL,
+    source_type VARCHAR(25) NOT NULL DEFAULT 'RECEIPT',
+    recorded_by VARCHAR(100) NOT NULL,
+    CONSTRAINT fk_receipt_batch FOREIGN KEY (batch_number) REFERENCES batches(batch_number),
+    CONSTRAINT chk_receipt_quantity CHECK (quantity_received > 0),
+    UNIQUE KEY uq_receipt_reference (batch_number, reference)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 CREATE TABLE hospitals (
     hospital_id INT AUTO_INCREMENT PRIMARY KEY,
     hospital_name VARCHAR(200) NOT NULL,

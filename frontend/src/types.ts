@@ -32,6 +32,8 @@ export interface Stock extends Batch {
   manufacturer_name: string;
   current_stock: number;
   total_distributed_units: number;
+  total_received_units: number;
+  has_inferred_opening_balance: boolean;
 }
 export interface Hospital {
   hospital_id: number;

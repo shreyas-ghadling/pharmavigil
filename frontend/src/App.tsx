@@ -52,7 +52,8 @@ const nav: NavigationItem[] = [
     roles: ["PHARMACIST", admin],
     children: [
       { name: "Stock inventory", value: "stock" },
-      { name: "Import batches", value: "import" },
+      { name: "Register batches", value: "import" },
+      { name: "Receive stock", value: "receive" },
       { name: "Dispatch stock", value: "dispatch" },
     ],
   },
