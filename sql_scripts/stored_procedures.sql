@@ -5,11 +5,11 @@
 
 USE pharmavigil_db;
 
-DROP PROCEDURE IF EXISTS sp_recall_batch;
+DROP PROCEDURE IF EXISTS sp_recall_batch_v2;
 
 DELIMITER //
 
-CREATE PROCEDURE sp_recall_batch(
+CREATE PROCEDURE sp_recall_batch_v2(
     IN p_batch_number VARCHAR(50),
     IN p_reason VARCHAR(255),
     IN p_recalled_by VARCHAR(100),
@@ -18,7 +18,7 @@ CREATE PROCEDURE sp_recall_batch(
 )
 proc_label: BEGIN
     DECLARE v_batch_exists INT DEFAULT 0;
-    DECLARE v_current_status VARCHAR(25) DEFAULT '';
+    DECLARE v_current_status VARCHAR(25) DEFAULT NULL;
     
     -- Transaction exception handler with automated rollback
     DECLARE EXIT HANDLER FOR SQLEXCEPTION
@@ -27,10 +27,11 @@ proc_label: BEGIN
         RESIGNAL;
     END;
 
-    -- 1. Verify existence of batch
-    SELECT COUNT(*), COALESCE(MAX(recall_status), '') INTO v_batch_exists, v_current_status 
-    FROM batches 
-    WHERE batch_number = p_batch_number;
+    -- The batch lock is shared with receipt and dispatch transactions.
+    START TRANSACTION;
+    SELECT recall_status INTO v_current_status
+    FROM batches WHERE batch_number = p_batch_number FOR UPDATE;
+    SET v_batch_exists = (v_current_status IS NOT NULL);
 
     IF v_batch_exists = 0 THEN
         SIGNAL SQLSTATE '45000'
@@ -43,8 +44,6 @@ proc_label: BEGIN
         SET MESSAGE_TEXT = 'Batch recall refused: Specified batch is already RECALLED.';
     END IF;
 
-    -- 2. Begin atomic transaction
-    START TRANSACTION;
 
         -- Step A: Transition batch status to RECALLED
         UPDATE batches

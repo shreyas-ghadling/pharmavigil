@@ -258,7 +258,7 @@ class SQLService:
         recalled_by: str = "SAFETY_OFFICER_ADMIN"
     ) -> Dict[str, Any]:
         """
-        Invokes the real MySQL Stored Procedure 'sp_recall_batch' with IN and OUT parameters.
+        Invokes the real MySQL Stored Procedure 'sp_recall_batch_v2' with IN and OUT parameters.
         Rejects recall if the batch is already RECALLED to prevent duplicate audit rows.
         Returns execution statistics.
         """
@@ -273,7 +273,13 @@ class SQLService:
             )
 
         in_out_args = (batch_number, reason, recalled_by, 0, 0)
-        result_args = mysql_client.call_stored_procedure("sp_recall_batch", in_out_args)
+        try:
+            result_args = mysql_client.call_stored_procedure("sp_recall_batch_v2", in_out_args)
+        except RuntimeError as exc:
+            cause = exc.__cause__
+            if getattr(cause, 'errno', None) == 1644 and 'already RECALLED' in getattr(cause, 'msg', ''):
+                raise RecalledBatchOperationError(batch_number=batch_number) from exc
+            raise
         
         # result_args maps to (batch_number, reason, recalled_by, affected_hospitals, total_units_recalled)
         affected_hospitals = result_args[3] if len(result_args) > 3 else 0

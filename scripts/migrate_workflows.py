@@ -60,6 +60,16 @@ def migrate_units(sql):
     print("Demo stock units defined; other catalog entries retain an explicit unspecified unit.")
 
 
+def migrate_recall(sql):
+    """Install the versioned atomic recall routine; keep the earlier routine for older deployments."""
+    exists = sql.execute_one("SELECT COUNT(*) AS n FROM information_schema.routines WHERE routine_schema=DATABASE() AND routine_name='sp_recall_batch_v2'")
+    if not exists['n']:
+        source = (ROOT / 'sql_scripts' / 'stored_procedures.sql').read_text()
+        statement = source[source.index('CREATE PROCEDURE'):source.index('END //') + len('END')]
+        sql.execute_update(statement)
+    print('Atomic recall routine ready.')
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--hosted", action="store_true")
@@ -69,4 +79,5 @@ if __name__ == "__main__":
     migrate_mongo(mongo)
     migrate_stock(sql)
     migrate_units(sql)
+    migrate_recall(sql)
     mongo.close()
