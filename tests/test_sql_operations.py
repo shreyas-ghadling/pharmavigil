@@ -329,7 +329,7 @@ BCH-PCM-9042,101,2026-01-01,2028-01-01,5000,ACTIVE
             assert test_batch in csv_output
             assert test_reason in csv_output
             assert "hospital_name" in csv_output
-            assert "total_quarantine_units" in csv_output
+            assert "historically_distributed_units" in csv_output
 
             # 4. Test PDF manifest output
             pdf_path = report_generator.generate_pdf_recall_manifest(
@@ -347,7 +347,7 @@ BCH-PCM-9042,101,2026-01-01,2028-01-01,5000,ACTIVE
             assert test_batch in extracted_text
             assert "Acute Clinical Signal" in extracted_text
             assert "EXPORT_TEST_OFFICER" in extracted_text
-            assert "Quarantine" in extracted_text
+            assert "Historical Affected-Batch Deliveries" in extracted_text
 
         finally:
             # Clean up

@@ -68,7 +68,7 @@ export default function Recalls() {
     <>
       <PageTitle
         title="Recalls"
-        description="Take action on unsafe batches and trace affected hospital stock."
+        description="Record recall decisions and trace historical hospital deliveries."
       />
       {!stockView ? <Panel
         title="Initiate a batch recall"
@@ -127,8 +127,8 @@ export default function Recalls() {
         </form>
       </Panel> : null}
       {stockView ? <Panel
-        title="Affected hospital stock"
-        description="Recalled or expired units already delivered to partner hospitals."
+        title="Affected hospital deliveries"
+        description="Historical deliveries of affected batches. These quantities are not verified remaining hospital stock."
       >
         {quarantine.isPending ? (
           <Loading />
@@ -151,12 +151,12 @@ export default function Recalls() {
               { title: "Medicine", render: (q) => q.commercial_name },
               { title: "Batch", render: (q) => q.batch_number },
               {
-                title: "Units to quarantine",
-                render: (q) => number(q.total_quarantine_units),
+                title: "Historically delivered",
+                render: (q) => `${number(q.historically_distributed_units)} ${q.stock_unit}s`,
               },
               { title: "Contact", render: (q) => q.contact_phone },
             ]}
-            empty="No recalled stock is currently recorded at partner hospitals."
+            empty="No affected hospital deliveries are recorded."
           />
         )}
       </Panel> : null}

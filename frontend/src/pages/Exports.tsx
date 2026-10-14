@@ -28,7 +28,7 @@ export default function Exports() {
     <>
       <PageTitle
         title="Reports & exports"
-        description="Download the latest recall audit and affected-stock records."
+        description="Download recall decisions and historical distribution records."
       />
       {error ? <Notice>{error}</Notice> : null}
       {success ? <Notice success>{success}</Notice> : null}
@@ -38,13 +38,13 @@ export default function Exports() {
             kind: "pdf",
             title: "Safety audit manifest",
             description:
-              "A formal PDF containing recall decisions and affected hospital stock.",
+              "A PDF containing recall decisions and historical affected-batch deliveries.",
             icon: FileText,
             label: "Download PDF",
           },
           {
             kind: "csv",
-            title: "Quarantine stock manifest",
+            title: "Affected-delivery manifest",
             description:
               "A CSV of affected batches, recall reasons, hospitals, contacts, and quantities.",
             icon: Table2,

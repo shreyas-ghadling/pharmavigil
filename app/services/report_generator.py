@@ -149,7 +149,8 @@ class ReportGenerator:
             "hospital_name",
             "city",
             "contact_phone",
-            "total_quarantine_units"
+            "historically_distributed_units",
+            "stock_unit"
         ]
         writer = csv.DictWriter(output, fieldnames=fieldnames)
         writer.writeheader()
@@ -170,7 +171,8 @@ class ReportGenerator:
                     "hospital_name": row.get("hospital_name", ""),
                     "city": row.get("city", ""),
                     "contact_phone": row.get("contact_phone", ""),
-                    "total_quarantine_units": row.get("total_quarantine_units", 0)
+                    "historically_distributed_units": row.get("historically_distributed_units", row.get("total_quarantine_units", 0)),
+                    "stock_unit": row.get("stock_unit", "unspecified")
                 })
         elif recall_audits:
             for a in recall_audits:
@@ -184,7 +186,8 @@ class ReportGenerator:
                     "hospital_name": "N/A (Central Stock)",
                     "city": "N/A",
                     "contact_phone": "N/A",
-                    "total_quarantine_units": a.get("total_units_recalled", 0)
+                    "historically_distributed_units": a.get("total_units_recalled", 0),
+                    "stock_unit": a.get("stock_unit", "unspecified")
                 })
 
         return output.getvalue()
@@ -264,9 +267,10 @@ class ReportGenerator:
             story.append(Spacer(1, 16))
 
             # Section 2: Quarantined Stock Distribution (CTE Tracing)
-            story.append(Paragraph("2. Quarantined Distribution by Hospital (CTE Tracing)", styles["Heading2"]))
+            story.append(Paragraph("2. Historical Affected-Batch Deliveries", styles["Heading2"]))
+            story.append(Paragraph("Delivered quantities do not establish stock remaining, quarantined, or recovered at hospitals.", styles["Normal"]))
             if quarantine_data:
-                q_table_data = [["Hospital", "City", "Emergency Phone", "Medicine", "Batch", "Quarantine Units"]]
+                q_table_data = [["Hospital", "City", "Contact Phone", "Medicine", "Batch", "Delivered Quantity"]]
                 for q in quarantine_data:
                     q_table_data.append([
                         str(q.get("hospital_name", "")),
@@ -274,7 +278,7 @@ class ReportGenerator:
                         str(q.get("contact_phone", "")),
                         str(q.get("commercial_name", "")),
                         str(q.get("batch_number", "")),
-                        str(q.get("total_quarantine_units", 0))
+                        f"{q.get('historically_distributed_units', q.get('total_quarantine_units', 0))} {q.get('stock_unit', 'unspecified')}"
                     ])
                 t_q = Table(q_table_data, colWidths=[120, 70, 90, 85, 95, 80])
                 t_q.setStyle(TableStyle([
@@ -287,7 +291,7 @@ class ReportGenerator:
                 ]))
                 story.append(t_q)
             else:
-                story.append(Paragraph("All active distributions are currently clear of recalled batches.", styles["Normal"]))
+                story.append(Paragraph("No hospital delivery records match the affected-batch criteria.", styles["Normal"]))
 
             doc.build(story)
         else:

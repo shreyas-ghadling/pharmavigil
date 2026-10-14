@@ -83,6 +83,8 @@ export interface Quarantine {
   commercial_name: string;
   batch_number: string;
   total_quarantine_units: number;
+  historically_distributed_units: number;
+  stock_unit: string;
 }
 export interface ClinicalReport {
   report_id: string;

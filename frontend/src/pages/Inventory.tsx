@@ -180,7 +180,7 @@ export default function Inventory() {
                 },
                 { title: "Batch", render: (b) => b.batch_number },
                 {
-                  title: "Stock",
+                  title: "Recorded central balance",
                   render: (b) => (
                     <>
                       {number(b.current_stock)} {b.stock_unit}s

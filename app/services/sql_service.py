@@ -302,16 +302,19 @@ class SQLService:
             )
             SELECT 
                 h.hospital_name,
+                h.hospital_id,
                 h.city,
                 h.contact_phone,
                 m.commercial_name,
+                m.stock_unit,
                 fb.batch_number,
-                SUM(bd.quantity_delivered) AS total_quarantine_units
+                SUM(bd.quantity_delivered) AS total_quarantine_units,
+                SUM(bd.quantity_delivered) AS historically_distributed_units
             FROM FlaggedBatches fb
             JOIN batch_distribution bd ON fb.batch_number = bd.batch_number
             JOIN hospitals h ON bd.hospital_id = h.hospital_id
             JOIN medicines m ON fb.medicine_id = m.medicine_id
-            GROUP BY h.hospital_name, h.city, h.contact_phone, m.commercial_name, fb.batch_number
+            GROUP BY h.hospital_id, h.hospital_name, h.city, h.contact_phone, m.commercial_name, m.stock_unit, fb.batch_number
             HAVING SUM(bd.quantity_delivered) > 0
             ORDER BY total_quarantine_units DESC;
         """
