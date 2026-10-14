@@ -368,7 +368,8 @@ def csv_export(user=Depends(access(ADMIN))):
 def pdf_export(user=Depends(access(ADMIN))):
     filename = f"audit-{secrets.token_hex(16)}.pdf"
     path = report_generator.generate_pdf_recall_manifest(sql_service.get_high_risk_quarantine_trace(),
-                                                       sql_service.get_recall_audits(), filename)
+                                                       sql_service.get_recall_audits(), filename,
+                                                       central_stock=sql_service.get_affected_central_stock())
     return FileResponse(path, filename="Safety_Audit_Recall_Manifest.pdf", media_type="application/pdf",
                         background=BackgroundTask(Path(path).unlink, missing_ok=True))
 

@@ -38,7 +38,7 @@ export default function Exports() {
             kind: "pdf",
             title: "Safety audit manifest",
             description:
-              "A PDF containing recall decisions and historical affected-batch deliveries.",
+              "A paginated PDF containing complete recall reasons, historical affected-batch deliveries, and affected central balances.",
             icon: FileText,
             label: "Download PDF",
           },
