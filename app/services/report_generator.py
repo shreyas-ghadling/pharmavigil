@@ -129,67 +129,49 @@ class ReportGenerator:
         return inserted_count, errors
 
     def generate_csv_quarantine_manifest(
-        self,
-        quarantine_data: List[Dict[str, Any]],
-        recall_audits: Optional[List[Dict[str, Any]]] = None
+        self, quarantine_data: List[Dict[str, Any]],
+        recall_audits: Optional[List[Dict[str, Any]]] = None,
+        central_stock: Optional[List[Dict[str, Any]]] = None
     ) -> str:
-        """
-        Generates a comprehensive CSV string representing the Safety Audit Quarantine Manifest.
-        Includes batch number, recall reason, affected hospitals, total units recalled,
-        and hospital quarantine distribution.
-        """
+        """Export recall initiations, historical deliveries, and recorded central balances."""
         output = io.StringIO()
-        fieldnames = [
-            "batch_number",
-            "commercial_name",
-            "reason",
-            "recalled_by",
-            "affected_hospitals",
-            "distributed_quantity_at_recall_initiation",
-            "hospital_name",
-            "city",
-            "contact_phone",
-            "historically_distributed_units",
-            "stock_unit"
-        ]
-        writer = csv.DictWriter(output, fieldnames=fieldnames)
+        fields = ['record_type', 'audit_id', 'recalled_at', 'batch_number', 'commercial_name',
+                  'affected_reason', 'recall_stage', 'reason', 'recalled_by', 'affected_hospitals',
+                  'distributed_quantity_at_recall_initiation', 'hospital_id', 'hospital_name',
+                  'city', 'contact_phone', 'historically_distributed_units', 'recorded_central_balance',
+                  'stock_unit', 'includes_inferred_opening_balance']
+        writer = csv.DictWriter(output, fieldnames=fields)
         writer.writeheader()
-
-        audit_map = {a.get("batch_number"): a for a in (recall_audits or [])}
-
-        if quarantine_data:
-            for row in quarantine_data:
-                b_num = row.get("batch_number", "")
-                audit = audit_map.get(b_num, {})
-                writer.writerow({
-                    "batch_number": b_num,
-                    "commercial_name": row.get("commercial_name", ""),
-                    "reason": audit.get("reason", "Expired batch" if row.get("affected_reason") == "EXPIRED" else "Recall reason not recorded"),
-                    "recalled_by": audit.get("recalled_by", ""),
-                    "affected_hospitals": audit.get("affected_hospitals", ""),
-                    "distributed_quantity_at_recall_initiation": audit.get("distributed_quantity_at_initiation", audit.get("total_units_recalled", "")),
-                    "hospital_name": row.get("hospital_name", ""),
-                    "city": row.get("city", ""),
-                    "contact_phone": row.get("contact_phone", ""),
-                    "historically_distributed_units": row.get("historically_distributed_units", row.get("total_quarantine_units", 0)),
-                    "stock_unit": row.get("stock_unit", "unspecified")
-                })
-        elif recall_audits:
-            for a in recall_audits:
-                writer.writerow({
-                    "batch_number": a.get("batch_number", ""),
-                    "commercial_name": a.get("commercial_name", "N/A"),
-                    "reason": a.get("reason", ""),
-                    "recalled_by": a.get("recalled_by", ""),
-                    "affected_hospitals": a.get("affected_hospitals", 0),
-                    "distributed_quantity_at_recall_initiation": a.get("distributed_quantity_at_initiation", a.get("total_units_recalled", 0)),
-                    "hospital_name": "N/A (Central Stock)",
-                    "city": "N/A",
-                    "contact_phone": "N/A",
-                    "historically_distributed_units": a.get("total_units_recalled", 0),
-                    "stock_unit": a.get("stock_unit", "unspecified")
-                })
-
+        audits = recall_audits or []
+        audit_map = {}
+        for audit in audits:
+            audit_map.setdefault(audit.get('batch_number'), audit)
+            writer.writerow({
+                'record_type': 'RECALL_INITIATION', 'audit_id': audit.get('audit_id'),
+                'recalled_at': audit.get('recalled_at'), 'batch_number': audit.get('batch_number'),
+                'commercial_name': audit.get('commercial_name'), 'affected_reason': 'RECALLED',
+                'recall_stage': audit.get('recall_stage', 'INITIATED'), 'reason': audit.get('reason'),
+                'recalled_by': audit.get('recalled_by'), 'affected_hospitals': audit.get('affected_hospitals'),
+                'distributed_quantity_at_recall_initiation': audit.get('distributed_quantity_at_initiation', audit.get('total_units_recalled')),
+                'stock_unit': audit.get('stock_unit')})
+        for row in quarantine_data:
+            audit = audit_map.get(row.get('batch_number'), {})
+            writer.writerow({
+                'record_type': 'HOSPITAL_DELIVERY', 'batch_number': row.get('batch_number'),
+                'commercial_name': row.get('commercial_name'), 'affected_reason': row.get('affected_reason'),
+                'reason': audit.get('reason'), 'recalled_by': audit.get('recalled_by'),
+                'affected_hospitals': audit.get('affected_hospitals'),
+                'distributed_quantity_at_recall_initiation': audit.get('distributed_quantity_at_initiation', audit.get('total_units_recalled')),
+                'hospital_id': row.get('hospital_id'), 'hospital_name': row.get('hospital_name'),
+                'city': row.get('city'), 'contact_phone': row.get('contact_phone'),
+                'historically_distributed_units': row.get('historically_distributed_units', row.get('total_quarantine_units')),
+                'stock_unit': row.get('stock_unit')})
+        for row in central_stock or []:
+            writer.writerow({
+                'record_type': 'CENTRAL_BALANCE', 'batch_number': row.get('batch_number'),
+                'commercial_name': row.get('commercial_name'), 'affected_reason': row.get('recall_status'),
+                'recorded_central_balance': row.get('current_stock'), 'stock_unit': row.get('stock_unit'),
+                'includes_inferred_opening_balance': row.get('has_inferred_opening_balance')})
         return output.getvalue()
 
     def generate_pdf_recall_manifest(

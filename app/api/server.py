@@ -359,7 +359,8 @@ def sample(user=Depends(access(ADMIN, PHARMACIST))):
 @app.get("/api/exports/quarantine.csv")
 def csv_export(user=Depends(access(ADMIN))):
     csv = report_generator.generate_csv_quarantine_manifest(sql_service.get_high_risk_quarantine_trace(),
-                                                            sql_service.get_recall_audits())
+                                                            sql_service.get_recall_audits(),
+                                                            sql_service.get_affected_central_stock())
     return Response(csv, media_type="text/csv", headers={"Content-Disposition": 'attachment; filename="quarantine_manifest.csv"'})
 
 
