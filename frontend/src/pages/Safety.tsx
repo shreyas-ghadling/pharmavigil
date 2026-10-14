@@ -2,6 +2,7 @@ import { lazy, Suspense, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useSearchParams } from "react-router-dom";
 import CaseReviews from "../components/CaseReviews";
+import PatternReview from "../components/PatternReview";
 import { Activity, Search } from "lucide-react";
 import { api } from "../api";
 import {
@@ -20,13 +21,14 @@ export default function Safety() {
   const caseView = params.get("tab") === "cases";
   const [severity, setSeverity] = useState(3);
   const [frequency, setFrequency] = useState(2);
+  const [days, setDays] = useState(0);
   const [q, setQ] = useState("");
   const [search, setSearch] = useState<string | null>(null);
   const signals = useQuery({
-    queryKey: ["signals", severity, frequency],
+    queryKey: ["signals", severity, frequency, days],
     queryFn: () =>
       api<Signal[]>(
-        `/signals?min_severity=${severity}&min_incidents=${frequency}`,
+        `/signals?min_severity=${severity}&min_incidents=${frequency}&window_days=${days}`,
       ),
     enabled: !clinicalView && !caseView,
   });
@@ -52,6 +54,7 @@ export default function Safety() {
         <p><Link className="text-link" to="/safety?tab=cases">Review individual serious reports and legacy flags</Link> independently of these pattern filters.</p>
         <p className="small muted">Priority score = report entries × average intensity. This project heuristic does not estimate incidence, probability of harm, or establish causality. Review priorities use project thresholds: 12 or above for urgent review, 6 or above for prioritized review, otherwise routine review.</p>
         <div className="filter-grid">
+          <label>Reporting window<select value={days} onChange={(e) => setDays(Number(e.target.value))}><option value={0}>All available history</option><option value={30}>Last 30 days</option><option value={90}>Last 90 days</option><option value={365}>Last 365 days</option></select></label>
           <label>
             Minimum average intensity: {severity}/5
             <input
@@ -74,7 +77,7 @@ export default function Safety() {
             />
           </label>
         </div>
-        <p className="small muted">Counts and averages include all reports for each medicine and symptom, across the available history. Filters select completed groups and do not remove lower-intensity reports from their calculations.</p>
+        <p className="small muted">Counts and averages include all reports in the selected window. Dated windows compare with the preceding period of equal length. All-history results describe accumulated reports, not an emerging trend. Filters select completed groups without removing lower-intensity reports.</p>
         {signals.isPending ? (
           <Loading />
         ) : signals.error ? (
@@ -95,6 +98,8 @@ export default function Safety() {
                   </div>
                   <h3>{s.medicine}</h3>
                   <p>{s.symptom}</p>
+                  <p className="small muted">Review status: {s.review_status.replaceAll("_", " ").toLowerCase()}</p>
+                  {s.previous_period_count !== null ? <p className="small muted">{s.incident_count} reports this period; {s.previous_period_count} in the preceding {days} days.</p> : null}
                   <div className="signal-numbers">
                     <div>
                       <strong>{s.priority_score}</strong>
@@ -116,6 +121,7 @@ export default function Safety() {
                     <summary>Review recommendation</summary>
                     <p>{s.recommendation}</p>
                   </details>
+                  <PatternReview signal={s} days={days} />
                 </article>
               ))}
             </div>

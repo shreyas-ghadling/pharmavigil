@@ -54,6 +54,10 @@ export interface Signal {
   review_priority: "URGENT" | "HIGH" | "ROUTINE";
   reported_serious_cases: number;
   seriousness_unknown_entries: number;
+  revision: string;
+  review_status: "NEEDS_REVIEW" | "REVIEWED" | "CLOSED";
+  review?: { status: string; notes: string; reviewed_at: string } | null;
+  previous_period_count: number | null;
 }
 export interface Recall {
   audit_id: number;

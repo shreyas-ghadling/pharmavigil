@@ -113,7 +113,7 @@ class MongoService:
             raise ValueError("The selected report does not exist.")
         return review
 
-    def execute_safety_signal_detection_pipeline(self, min_severity: float = 3, min_incidents: int = 2) -> List[Dict[str, Any]]:
+    def execute_safety_signal_detection_pipeline(self, min_severity: float = 3, min_incidents: int = 2, window_days: int = 0) -> List[Dict[str, Any]]:
         """
         Summarizes symptom entries across all available reports for review.
         Filters completed groups and retains legacy field names for API compatibility.
@@ -138,6 +138,7 @@ class MongoService:
                         "symptom": "$_id.symptom"
                     },
                     "incident_count": {"$sum": 1},
+                    "report_keys": {"$addToSet": "$_id.report"},
                     "avg_severity": {"$avg": "$severity_score"},
                     "reported_serious_cases": {"$sum": {"$cond": [
                         {"$gt": [{"$size": {"$ifNull": ["$seriousness_criteria", []]}}, 0]}, 1, 0
@@ -166,6 +167,7 @@ class MongoService:
                     "medicine": "$_id.medicine_name",
                     "symptom": "$_id.symptom",
                     "incident_count": 1,
+                    "report_keys": 1,
                     "avg_severity": {"$round": ["$avg_severity", 2]},
                     "critical_cases": 1,
                     "reported_serious_cases": 1,
@@ -185,10 +187,33 @@ class MongoService:
         ]
 
         collection = mongo_client.get_adverse_reports_collection()
+        import copy, hashlib, json
+        from datetime import datetime, timedelta, timezone
+        now = datetime.now(timezone.utc)
+        def dated(start, end):
+            return [{"$set": {"_report_date": {"$convert": {"input": "$reported_at", "to": "date", "onError": None, "onNull": None}}}},
+                    {"$match": {"_report_date": {"$gte": start, "$lt": end}}}]
+        previous = {}
+        if window_days:
+            cutoff = now - timedelta(days=window_days)
+            previous_pipeline = copy.deepcopy(pipeline)
+            for stage in previous_pipeline:
+                if "incident_count" in stage.get("$match", {}):
+                    stage["$match"] = {"incident_count": {"$gte": 1}}
+            previous = {(r["medicine"], r["symptom"]): r["incident_count"] for r in collection.aggregate(
+                dated(now - timedelta(days=2 * window_days), cutoff) + previous_pipeline)}
+            pipeline = dated(cutoff, now) + pipeline
         results = list(collection.aggregate(pipeline))
 
         # Enrich results with SafetyAuditor recommendations
         for row in results:
+            report_keys = sorted(str(key) for key in row.pop("report_keys"))
+            row["revision"] = hashlib.sha256(json.dumps([report_keys, row["incident_count"], row["avg_severity"], row["reported_serious_cases"]]).encode()).hexdigest()
+            row["review_key"] = hashlib.sha256(json.dumps([row["medicine"], row["symptom"], window_days]).encode()).hexdigest()
+            review = mongo_client.get_database()["signal_reviews"].find_one({"_id": row["review_key"]}, {"_id": 0, "history": 0})
+            row["review"] = review
+            row["review_status"] = review["status"] if review and review["revision"] == row["revision"] else "NEEDS_REVIEW"
+            row["previous_period_count"] = previous.get((row["medicine"], row["symptom"]), 0) if window_days else None
             eval_data = SafetyAuditor.evaluate_signal_alert(
                 medicine_name=row["medicine"],
                 symptom=row["symptom"],
@@ -204,6 +229,20 @@ class MongoService:
             row["recommendation"] = eval_data["recommendation"]
 
         return results
+
+    def review_pattern(self, medicine_name, symptom, window_days, revision, status, notes, user):
+        from datetime import datetime, timezone
+        from app.utils.exceptions import PharmavigilException
+        pattern = next((r for r in self.execute_safety_signal_detection_pipeline(1, 1, window_days)
+                        if r["medicine"] == medicine_name and r["symptom"] == symptom), None)
+        if not pattern or pattern["revision"] != revision:
+            raise PharmavigilException("Reports changed. Refresh the patterns before saving this review.")
+        review = {"revision": revision, "status": status, "notes": notes,
+                  "reviewed_at": datetime.now(timezone.utc).isoformat(),
+                  "reviewed_by": {k: user[k] for k in ("user_id", "username", "full_name")}}
+        mongo_client.get_database()["signal_reviews"].update_one({"_id": pattern["review_key"]},
+            {"$set": review, "$push": {"history": review}}, upsert=True)
+        return review
 
     def search_clinical_notes_text(self, search_query: str, limit: int = 20) -> List[Dict[str, Any]]:
         """

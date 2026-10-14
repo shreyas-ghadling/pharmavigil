@@ -270,9 +270,24 @@ def dispatch(payload: Dispatch, user=Depends(access(ADMIN, PHARMACIST))):
 
 
 @app.get("/api/signals")
-def signals(min_severity: float = Query(3, ge=1, le=5), min_incidents: int = Query(2, ge=1, le=10),
+def signals(min_severity: float = Query(3, ge=1, le=5), min_incidents: int = Query(2, ge=1, le=10), window_days: int = Query(0, ge=0, le=365),
             user=Depends(access(ADMIN))):
-    return mongo_service.execute_safety_signal_detection_pipeline(min_severity, min_incidents)
+    return mongo_service.execute_safety_signal_detection_pipeline(min_severity, min_incidents, window_days)
+
+
+class PatternReview(BaseModel):
+    medicine_name: str = Field(min_length=2, max_length=150)
+    symptom: str = Field(min_length=2, max_length=100)
+    window_days: int = Field(ge=0, le=365)
+    revision: str = Field(min_length=64, max_length=64)
+    status: str = Field(pattern="^(REVIEWED|CLOSED)$")
+    notes: str = Field(min_length=5, max_length=1000)
+
+
+@app.post("/api/signal-reviews")
+def review_pattern(payload: PatternReview, user=Depends(access(ADMIN))):
+    return mongo_service.review_pattern(payload.medicine_name, payload.symptom, payload.window_days,
+                                       payload.revision, payload.status, payload.notes, user)
 
 
 @app.get("/api/clinical-search")
