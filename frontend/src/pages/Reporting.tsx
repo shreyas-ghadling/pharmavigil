@@ -137,6 +137,10 @@ export default function Reporting() {
   }
   function next() {
     setError("");
+    if ((step === 1 && conditionName.trim()) || (step === 2 && symptomName.trim())) {
+      setError("Add your entered observation or clear it before continuing.");
+      return;
+    }
     if (step === 0 && (!draft.medicine_id || !draft.reporter_type)) {
       setError("Choose the medicine and reporter type.");
       return;
@@ -182,7 +186,7 @@ export default function Reporting() {
             {draft.medicine_name} · {draft.batch_number ?? "Batch unknown"}
           </p>
           <p>
-            Severity {draft.severity_score}/5 · {draft.symptoms.length} observed
+            Intensity {draft.severity_score}/5 · {draft.symptoms.length} observed
             symptoms
           </p>
           <p>{draft.symptoms.map((symptom) => symptom.name).join(", ")}</p>
@@ -509,7 +513,7 @@ export default function Reporting() {
                       patch({ severity_score: e.target.value === "" ? "" : Number(e.target.value) })
                     }
                   >
-                    <option value="">Select severity</option>
+                    <option value="">Select intensity</option>
                     {["Mild", "Mild to moderate", "Moderate", "Severe", "Very severe"].map((label, i) => (
                       <option key={label} value={i + 1}>{i + 1}/5 - {label}</option>
                     ))}

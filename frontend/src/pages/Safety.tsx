@@ -162,7 +162,7 @@ export default function Safety() {
               <summary>
                 <strong>{r.medicine_name}</strong>
                 <span>
-                  {r.report_id} · Severity {r.severity_score}/5
+                  {r.report_id} · Intensity {r.severity_score}/5
                 </span>
               </summary>
               <p>{r.clinical_notes || "No clinical notes provided."}</p>

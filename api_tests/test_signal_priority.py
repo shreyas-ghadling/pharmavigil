@@ -29,3 +29,9 @@ def test_routine_priority_is_not_a_safety_assurance():
     assert result["review_priority"] == "ROUTINE"
     assert "does not establish medicine safety" in result["recommendation"]
     assert "acceptable tolerance" not in result["recommendation"]
+
+
+def test_aggregation_score_is_not_recomputed_from_rounded_average():
+    result = SafetyAuditor.evaluate_signal_alert("Example", "Nausea", 3, 3.67, 0, priority_score=11)
+    assert result["priority_score"] == result["signal_risk_score"] == 11
+    assert result["review_priority"] == "HIGH"

@@ -154,8 +154,7 @@ class Batch:
 
 class SafetyAuditor:
     """
-    Encapsulates pharmacovigilance safety evaluation logic, signal calculations,
-    and automated regulatory recall recommendations.
+    Project review priorities for reported medicine and symptom patterns.
     """
 
     CRITICAL_SCORE_THRESHOLD = 12.0
@@ -172,7 +171,7 @@ class SafetyAuditor:
 
     @staticmethod
     def calculate_signal_risk_score(incident_count: int, avg_severity: float) -> float:
-        """Calculates composite pharmacovigilance signal risk score."""
+        """Calculates the project's count-times-intensity review heuristic."""
         return round(float(incident_count) * float(avg_severity), 2)
 
     @classmethod
@@ -182,13 +181,14 @@ class SafetyAuditor:
         symptom: str,
         incident_count: int,
         avg_severity: float,
-        critical_cases: int
+        critical_cases: int,
+        priority_score: Optional[float] = None,
     ) -> Dict[str, Any]:
         """
-        Evaluates risk indicators against safety thresholds.
-        Returns risk categorization and emergency action recommendation.
+        Applies project review thresholds. Legacy symptom flags are descriptive only.
+        Aggregation callers pass their score to avoid recalculating from a rounded average.
         """
-        risk_score = cls.calculate_signal_risk_score(incident_count, avg_severity)
+        risk_score = priority_score if priority_score is not None else cls.calculate_signal_risk_score(incident_count, avg_severity)
         
         level = cls.classify_priority(risk_score)
 
