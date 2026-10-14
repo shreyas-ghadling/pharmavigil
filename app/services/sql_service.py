@@ -285,16 +285,16 @@ class SQLService:
             "reason": reason,
             "recalled_by": recalled_by,
             "affected_hospitals": affected_hospitals,
-            "total_units_recalled": total_units_recalled
-            ,"distributed_quantity_at_initiation": total_units_recalled,
+            "total_units_recalled": total_units_recalled,
+            "distributed_quantity_at_initiation": total_units_recalled,
+            "stock_unit": batch_info["stock_unit"],
             "recall_stage": "INITIATED"
         }
 
     def get_high_risk_quarantine_trace(self) -> List[Dict[str, Any]]:
         """
-        Executes Section 6.2 Advanced Analytical Query:
-        Uses Common Table Expressions (CTE) and multi-table JOIN with GROUP BY ... HAVING
-        to pinpoint hospitals holding active stock of recalled batches.
+        Trace historical hospital deliveries of recalled and expired batches.
+        Delivered quantities do not confirm remaining physical stock.
         """
         query = """
             WITH FlaggedBatches AS (
@@ -336,6 +336,8 @@ class SQLService:
                 total_units_recalled,
                 total_units_recalled AS distributed_quantity_at_initiation,
                 'INITIATED' AS recall_stage,
+                (SELECT m.stock_unit FROM medicines m JOIN batches b ON m.medicine_id=b.medicine_id
+                 WHERE b.batch_number=recall_audit.batch_number) AS stock_unit,
                 recalled_at
             FROM recall_audit
             ORDER BY recalled_at DESC;

@@ -41,7 +41,7 @@ export default function Recalls() {
   });
   const mutation = useMutation({
     mutationFn: () =>
-      api<{ affected_hospitals: number; total_units_recalled: number }>(
+      api<{ affected_hospitals: number; distributed_quantity_at_initiation: number; stock_unit: string }>(
         "/recalls",
         {
           method: "POST",
@@ -116,7 +116,7 @@ export default function Recalls() {
           {mutation.isSuccess ? (
             <Notice success>
               Recall initiated. {mutation.data.affected_hospitals} hospitals
-              affected; {number(mutation.data.total_units_recalled)} units
+              affected; {number(mutation.data.distributed_quantity_at_initiation)} {mutation.data.stock_unit}s
               historically distributed. Recovery and disposal have not been confirmed.
             </Notice>
           ) : null}
@@ -190,7 +190,7 @@ export default function Recalls() {
               {
                 title: "Hospitals / historically delivered",
                 render: (r) =>
-                  `${r.affected_hospitals} / ${number(r.distributed_quantity_at_initiation)}`,
+                  `${r.affected_hospitals} / ${number(r.distributed_quantity_at_initiation)} ${r.stock_unit}s`,
               },
               {
                 title: "Date",

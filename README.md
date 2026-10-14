@@ -16,13 +16,15 @@ Reports can include active, expired, recalled, or investigated batches. If the b
 
 ### Medicine inventory and hospital distribution
 
-The inventory page lists medicine batches with manufacturer details, manufacturing and expiry dates, batch status, quantities distributed, and stock remaining. Users can search the records and identify expired or recalled batches.
+The inventory page lists medicine batches, manufacturer details, dates, status, recorded receipts, distributions, and central balances. Quantities have explicit stock units such as tablets, capsules, inhalers, or tubes. The dashboard avoids adding unlike units together.
 
-Pharmacists can record a dispatch by selecting a batch, hospital, quantity, and dispatch date. The system checks stock availability and rejects dispatches from recalled or expired batches. Dispatches use database transactions and row locking to prevent simultaneous requests from allocating more stock than is available.
+Registering a production batch does not create received stock. Pharmacists record separate receipts, including quantity, date, and a shipment reference. Several receipts can belong to one batch, and retrying an identical receipt does not count it twice. Older inventory balances are retained as clearly labelled inferred opening balances, which are not verified physical receipts.
+
+Pharmacists record dispatches by batch, hospital, quantity, and date. The system checks receipt-based stock availability, manufacture and expiry dates, and recorded daily balances. Future dispatches and dispatches from recalled, investigated, or expired batches are blocked. Transactions and row locking prevent simultaneous requests from allocating the same stock.
 
 ### Batch import from CSV
 
-Pharmacists can download a sample CSV and use it to import several batches at once. The import checks required fields, dates, quantities, medicine references, and duplicate batch numbers.
+Pharmacists can download a sample CSV and register several batches at once. Registration checks fields, dates, production quantities, medicine references, and duplicate batch numbers. Received quantities are recorded separately.
 
 If any row is invalid, the entire import is rejected. This prevents a file from being partly saved and makes it easier to correct errors before trying again.
 
@@ -32,19 +34,21 @@ Safety officers can review reported medicine and symptom combinations. The syste
 
 The score is calculated as **report-entry count × average intensity**. It is a project heuristic for prioritizing review, not a measure of incidence, probability of harm, or causality. Project thresholds assign urgent review at 12 or above, prioritized review at 6 or above, and routine review below 6. Recommendations call for investigation; the score cannot determine that a batch should be recalled or that a medicine is safe.
 
-Officers can filter by minimum average intensity and report-entry count. These filters apply after aggregation, so counts and averages include lower-intensity reports across the available history. Charts and tables show the results, while clinical-note search helps locate reports containing relevant observations.
+Officers can filter by minimum average intensity, report count, and reporting window. Filters apply after aggregation. Dated windows compare with the preceding period of equal length; all-history results describe accumulated reports. Patterns use stable medicine IDs, so product renaming does not split their history. Reviews record the officer, assessment, and history, and new reports reopen a reviewed pattern.
+
+An individual case-review queue includes reported serious outcomes and legacy symptom flags regardless of pattern thresholds. Submission retries are protected and each symptom counts once per report. Optional local case references prevent the same account from recording an identified case twice. Similar demographics alone do not establish that two reports describe the same patient.
 
 ### Batch recalls and stock tracing
 
 Safety officers can select a batch, enter a recall reason, and confirm the action. A MySQL stored procedure updates the batch status and creates an audit record containing the reason, officer name, and timestamp.
 
-Distribution records identify hospitals that received the batch and the quantities delivered. The recall section also shows stock associated with recalled or expired batches so affected records can be reviewed. Recalled batches are blocked from further dispatch.
+Distribution records identify historical deliveries of recalled or expired batches. Delivered quantities do not establish current hospital stock. A recall record represents initiation, not confirmation of hospital notification, recovery, disposal, or completion. Recalled batches are blocked from further dispatch.
 
 ### Dashboard and exports
 
-The dashboard changes according to the signed-in user's role. Inventory users see stock on hand, registered batches, batches expiring within 30 days, and distribution totals. Safety officers also see detected safety signals and recall information. Doctors and patients get a shortcut to submit a reaction report.
+The dashboard changes according to the signed-in user's role. Inventory users see batches with available recorded stock, registered batches, expiry warnings, and dispatch-record counts. Safety officers also see patterns for review and recall initiations. Doctors and patients get a shortcut to submit a reaction report.
 
-Safety officers can download a PDF safety audit and a CSV quarantine manifest. These exports include recall and affected-stock records. Pharmacists can download the sample CSV used for batch intake.
+Safety officers can download a PDF audit and a CSV affected-delivery manifest. These exports describe recall initiations and historical distributions, without claiming physical stock recovery. Pharmacists can download the batch-registration sample CSV.
 
 ## User roles
 

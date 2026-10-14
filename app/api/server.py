@@ -263,6 +263,7 @@ class Dispatch(BaseModel):
 
 
 class Receipt(BaseModel):
+    model_config = {"str_strip_whitespace": True}
     batch_number: str
     quantity: int = Field(gt=0, le=1000000)
     receipt_date: date
@@ -288,6 +289,7 @@ def signals(min_severity: float = Query(3, ge=1, le=5), min_incidents: int = Que
 
 
 class PatternReview(BaseModel):
+    model_config = {"str_strip_whitespace": True}
     medicine_key: str = Field(min_length=1, max_length=170)
     symptom: str = Field(min_length=2, max_length=100)
     window_days: int = Field(ge=0, le=365)
@@ -313,6 +315,7 @@ def case_reviews(page: int = Query(1, ge=1), user=Depends(access(ADMIN))):
 
 
 class CaseReview(BaseModel):
+    model_config = {"str_strip_whitespace": True}
     report_id: str = Field(min_length=3, max_length=100)
     status: str = Field(pattern="^(REVIEWED|FOLLOW_UP)$")
     notes: str = Field(min_length=5, max_length=1000)

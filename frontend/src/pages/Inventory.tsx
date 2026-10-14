@@ -185,6 +185,7 @@ export default function Inventory() {
                     <>
                       {number(b.current_stock)} {b.stock_unit}s
                       <small>{number(b.total_received_units)} recorded as received</small>
+                      {b.has_inferred_opening_balance ? <small>Includes inferred legacy opening balance</small> : null}
                     </>
                   ),
                 },

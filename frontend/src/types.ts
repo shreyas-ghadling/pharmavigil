@@ -77,6 +77,7 @@ export interface Recall {
   recalled_at: string;
   distributed_quantity_at_initiation: number;
   recall_stage: "INITIATED";
+  stock_unit: string;
 }
 export interface Quarantine {
   hospital_name: string;
