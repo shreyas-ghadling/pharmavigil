@@ -263,7 +263,7 @@ def dispatch(payload: Dispatch, user=Depends(access(ADMIN, PHARMACIST))):
 
 
 @app.get("/api/signals")
-def signals(min_severity: int = Query(3, ge=1, le=5), min_incidents: int = Query(2, ge=1, le=10),
+def signals(min_severity: float = Query(3, ge=1, le=5), min_incidents: int = Query(2, ge=1, le=10),
             user=Depends(access(ADMIN))):
     return mongo_service.execute_safety_signal_detection_pipeline(min_severity, min_incidents)
 

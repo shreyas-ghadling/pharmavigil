@@ -10,7 +10,7 @@ The application connects two parts of medicine safety: where a medicine batch ha
 
 ### Adverse reaction reporting
 
-Doctors and patients can submit a report through a guided form. Each report includes the medicine and batch, patient age and gender, existing conditions, observed symptoms, symptom onset, severity, and clinical notes. Users review their entries before submitting and receive a report ID after submission.
+Doctors, patients, and pharmacists can submit a report through a guided form. Each report includes the medicine and batch, patient age and gender, existing conditions, observed symptoms, onset, reaction intensity, serious outcomes, and clinical notes. Users can add symptoms and conditions outside the suggested lists, record unknown onset, and report delayed reactions. Clinical fields start blank. Users review their entries before submitting and receive a report ID after submission. The authenticated submitting account is recorded separately from the declared reporting source.
 
 Reports can include active, expired, recalled, or investigated batches. If the batch number is unknown, users can record that explicitly. When a batch is supplied, the backend checks that it exists and belongs to the selected medicine. It also validates patient details, symptoms, and severity scores before saving the report in MongoDB.
 
@@ -28,9 +28,11 @@ If any row is invalid, the entire import is rejected. This prevents a file from 
 
 ### Safety monitoring and clinical search
 
-Safety officers can review repeated medicine and symptom combinations. The system groups adverse reports and calculates incident counts, average severity, critical symptom counts, and a signal score. Results are ranked and classified as moderate, high, or critical using fixed rules.
+Safety officers can review reported medicine and symptom combinations. The system groups adverse reports and calculates report-entry counts, average intensity, reported serious outcomes, and a review-priority score. Legacy symptom flags remain distinguishable from structured serious outcomes.
 
-The score is calculated as **incident count × average severity**. Officers can adjust the minimum severity and incident count to change which signals appear. Charts and tables show the results, while clinical-note search helps locate reports containing relevant observations.
+The score is calculated as **report-entry count × average intensity**. It is a project heuristic for prioritizing review, not a measure of incidence, probability of harm, or causality. Project thresholds assign urgent review at 12 or above, prioritized review at 6 or above, and routine review below 6. Recommendations call for investigation; the score cannot determine that a batch should be recalled or that a medicine is safe.
+
+Officers can filter by minimum average intensity and report-entry count. These filters apply after aggregation, so counts and averages include lower-intensity reports across the available history. Charts and tables show the results, while clinical-note search helps locate reports containing relevant observations.
 
 ### Batch recalls and stock tracing
 

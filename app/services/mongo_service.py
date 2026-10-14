@@ -74,20 +74,14 @@ class MongoService:
         cursor = collection.find(filter_dict or {}, {"_id": 0}).sort("reported_at", -1).limit(limit)
         return list(cursor)
 
-    def execute_safety_signal_detection_pipeline(self, min_severity: int = 3, min_incidents: int = 2) -> List[Dict[str, Any]]:
+    def execute_safety_signal_detection_pipeline(self, min_severity: float = 3, min_incidents: int = 2) -> List[Dict[str, Any]]:
         """
         Executes Section 6.3 Multi-Stage Aggregation Pipeline: Safety Signal Detection.
         Unwinds polymorphic symptom arrays, calculates symptom frequency, average severity,
         critical emergency cases, and computes signal risk score.
         """
         pipeline = [
-            # Stage 1: Match recent reports with significant severity
-            {
-                "$match": {
-                    "severity_score": {"$gte": min_severity}
-                }
-            },
-            # Stage 2: Deconstruct symptoms array for granular aggregation
+            # Include all intensity levels when calculating counts and averages.
             {
                 "$unwind": "$symptoms"
             },
@@ -113,7 +107,8 @@ class MongoService:
             # Stage 4: Filter out low-frequency noise (Signal Detection threshold)
             {
                 "$match": {
-                    "incident_count": {"$gte": min_incidents}
+                    "incident_count": {"$gte": min_incidents},
+                    "avg_severity": {"$gte": min_severity},
                 }
             },
             # Stage 5: Format output projection and compute signal risk score

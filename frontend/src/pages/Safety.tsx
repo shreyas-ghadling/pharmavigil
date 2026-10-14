@@ -49,17 +49,18 @@ export default function Safety() {
         <p className="small muted">Priority score = report entries × average intensity. This project heuristic does not estimate incidence, probability of harm, or establish causality. Review priorities use project thresholds: 12 or above for urgent review, 6 or above for prioritized review, otherwise routine review.</p>
         <div className="filter-grid">
           <label>
-            Minimum severity: {severity}/5
+            Minimum average intensity: {severity}/5
             <input
               type="range"
               min="1"
               max="5"
+              step="0.5"
               value={severity}
               onChange={(e) => setSeverity(Number(e.target.value))}
             />
           </label>
           <label>
-            Minimum incidents: {frequency}
+            Minimum report entries: {frequency}
             <input
               type="range"
               min="1"
@@ -69,6 +70,7 @@ export default function Safety() {
             />
           </label>
         </div>
+        <p className="small muted">Counts and averages include all reports for each medicine and symptom, across the available history. Filters select completed groups and do not remove lower-intensity reports from their calculations.</p>
         {signals.isPending ? (
           <Loading />
         ) : signals.error ? (
@@ -122,7 +124,7 @@ export default function Safety() {
           </>
         ) : (
           <Empty>
-            No signals exceed these thresholds. Adjust the filters to broaden
+            No reported patterns meet these thresholds. Adjust the filters to broaden
             your review.
           </Empty>
         )}
