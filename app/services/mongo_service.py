@@ -74,6 +74,27 @@ class MongoService:
         cursor = collection.find(filter_dict or {}, {"_id": 0}).sort("reported_at", -1).limit(limit)
         return list(cursor)
 
+    def get_case_review_queue(self, page: int = 1, page_size: int = 25) -> Dict[str, Any]:
+        collection = mongo_client.get_adverse_reports_collection()
+        query = {"$and": [
+            {"review.status": {"$ne": "REVIEWED"}},
+            {"$or": [{"seriousness_criteria.0": {"$exists": True}},
+                     {"seriousness_criteria": None, "symptoms.is_critical": True}]},
+        ]}
+        return {"items": list(collection.find(query, {"_id": 0}).sort("reported_at", -1)
+                              .skip((page - 1) * page_size).limit(page_size)),
+                "total": collection.count_documents(query)}
+
+    def review_case(self, report_id: str, status: str, notes: str, user: Dict[str, Any]):
+        from datetime import datetime, timezone
+        review = {"status": status, "notes": notes, "reviewed_at": datetime.now(timezone.utc).isoformat(),
+                  "reviewed_by": {k: user[k] for k in ("user_id", "username", "full_name")}}
+        result = mongo_client.get_adverse_reports_collection().update_one(
+            {"report_id": report_id}, {"$set": {"review": review}, "$push": {"review_history": review}})
+        if not result.matched_count:
+            raise ValueError("The selected report does not exist.")
+        return review
+
     def execute_safety_signal_detection_pipeline(self, min_severity: float = 3, min_incidents: int = 2) -> List[Dict[str, Any]]:
         """
         Summarizes symptom entries across all available reports for review.

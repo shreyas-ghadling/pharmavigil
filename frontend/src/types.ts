@@ -81,6 +81,8 @@ export interface ClinicalReport {
   reported_at: string;
   reporter_type: string;
   seriousness_criteria?: string[] | null;
+  symptoms?: Symptom[];
+  review?: { status: "REVIEWED" | "FOLLOW_UP"; notes: string; reviewed_at: string };
   submitted_by?: { user_id: number; username: string; full_name: string; role: string } | null;
   patient_demographics?: {
     age: number;

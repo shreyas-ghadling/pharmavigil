@@ -1,6 +1,7 @@
 import { lazy, Suspense, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
+import CaseReviews from "../components/CaseReviews";
 import { Activity, Search } from "lucide-react";
 import { api } from "../api";
 import {
@@ -16,6 +17,7 @@ const SignalChart = lazy(() => import("../components/SignalChart"));
 export default function Safety() {
   const [params] = useSearchParams();
   const clinicalView = params.get("tab") === "clinical";
+  const caseView = params.get("tab") === "cases";
   const [severity, setSeverity] = useState(3);
   const [frequency, setFrequency] = useState(2);
   const [q, setQ] = useState("");
@@ -26,7 +28,7 @@ export default function Safety() {
       api<Signal[]>(
         `/signals?min_severity=${severity}&min_incidents=${frequency}`,
       ),
-    enabled: !clinicalView,
+    enabled: !clinicalView && !caseView,
   });
   const clinical = useQuery({
     queryKey: ["clinical-search", search],
@@ -42,10 +44,12 @@ export default function Safety() {
         title="Safety monitoring"
         description="Review reported patterns and investigate clinical observations."
       />
-      {!clinicalView ? <Panel
+      {caseView ? <CaseReviews /> : null}
+      {!clinicalView && !caseView ? <Panel
         title="Signal detection"
         description="Screen reported patterns for further review."
       >
+        <p><Link className="text-link" to="/safety?tab=cases">Review individual serious reports and legacy flags</Link> independently of these pattern filters.</p>
         <p className="small muted">Priority score = report entries × average intensity. This project heuristic does not estimate incidence, probability of harm, or establish causality. Review priorities use project thresholds: 12 or above for urgent review, 6 or above for prioritized review, otherwise routine review.</p>
         <div className="filter-grid">
           <label>

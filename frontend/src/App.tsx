@@ -63,6 +63,7 @@ const nav: NavigationItem[] = [
     roles: [admin],
     children: [
       { name: "Signal detection", value: "signals" },
+      { name: "Individual case reviews", value: "cases" },
       { name: "Clinical search", value: "clinical" },
     ],
   },

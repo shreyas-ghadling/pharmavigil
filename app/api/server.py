@@ -273,6 +273,22 @@ def search(q: str = Query("", max_length=200), user=Depends(access(ADMIN))):
     return mongo_service.search_clinical_notes_text(q)
 
 
+@app.get("/api/case-reviews")
+def case_reviews(page: int = Query(1, ge=1), user=Depends(access(ADMIN))):
+    return mongo_service.get_case_review_queue(page)
+
+
+class CaseReview(BaseModel):
+    report_id: str = Field(min_length=3, max_length=100)
+    status: str = Field(pattern="^(REVIEWED|FOLLOW_UP)$")
+    notes: str = Field(min_length=5, max_length=1000)
+
+
+@app.post("/api/case-reviews")
+def review_case(payload: CaseReview, user=Depends(access(ADMIN))):
+    return mongo_service.review_case(payload.report_id, payload.status, payload.notes, user)
+
+
 @app.get("/api/recalls")
 def recalls(user=Depends(access(ADMIN))):
     return sql_service.get_recall_audits()
