@@ -26,10 +26,25 @@ def repair_strength(sql, mongo):
     print(f"Catalog entries corrected: {changed}; seeded narratives corrected: {result.modified_count}")
 
 
+def repair_formulations(sql):
+    entries = [
+        (104, "PulmoBreeze", "Salbutamol Sulfate", "100mcg", "100 mcg/actuation"),
+        (106, "Dermacure", "Hydrocortisone", "10mg", "10 mg/g (1%)"),
+    ]
+    for medicine_id, name, generic, old, new in entries:
+        changed = sql.execute_update(
+            "UPDATE medicines SET strength = %s WHERE medicine_id = %s "
+            "AND commercial_name = %s AND generic_name = %s AND strength = %s",
+            (new, medicine_id, name, generic, old),
+        )
+        print(f"{name} formulation entries corrected: {changed}")
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--hosted", action="store_true")
     parser.add_argument("--database", default="pharmavigil_db")
+    parser.add_argument("--issue", choices=["strength", "formulations", "all"], default="all")
     args = parser.parse_args()
     sql, mongo = MySQLClient(), MongoDBClient()
     if args.hosted:
@@ -39,5 +54,8 @@ if __name__ == "__main__":
         mongo.uri, mongo.db_name = env["MONGO_URI"], env["MONGO_DB_NAME"]
     else:
         sql.database = mongo.db_name = args.database
-    repair_strength(sql, mongo)
+    if args.issue in {"strength", "all"}:
+        repair_strength(sql, mongo)
+    if args.issue in {"formulations", "all"}:
+        repair_formulations(sql)
     mongo.close()

@@ -23,9 +23,9 @@ INSERT INTO medicines (medicine_id, commercial_name, generic_name, dosage_form, 
 (101, 'Cardiomax', 'Amlodipine Besylate', 'Tablet', '5 mg', 1),
 (102, 'Neurocalm', 'Pregabalin', 'Capsule', '75mg', 2),
 (103, 'Glucoguard', 'Metformin HCl', 'Tablet', '500mg', 3),
-(104, 'PulmoBreeze', 'Salbutamol Sulfate', 'Inhalation Spray', '100mcg', 1),
+(104, 'PulmoBreeze', 'Salbutamol Sulfate', 'Inhalation Spray', '100 mcg/actuation', 1),
 (105, 'GastroRelief', 'Omeprazole', 'Capsule', '20mg', 2),
-(106, 'Dermacure', 'Hydrocortisone', 'Cream', '10mg', 3)
+(106, 'Dermacure', 'Hydrocortisone', 'Cream', '10 mg/g (1%)', 3)
 ON DUPLICATE KEY UPDATE commercial_name=VALUES(commercial_name);
 
 -- 3. SEED BATCHES (10 Batches: Exactly 1 Expired, 2 Expiring within 30 days, 7 Active)
