@@ -90,13 +90,14 @@ class AdverseReportCreate(BaseModel):
 
     @model_validator(mode="before")
     @classmethod
-    def set_defaults_and_ids(cls, values: dict) -> dict:
+    def assign_server_metadata(cls, values: dict) -> dict:
         if isinstance(values, dict):
-            if not values.get("report_id"):
-                import uuid
-                values["report_id"] = f"ADR-{datetime.now().year}-{uuid.uuid4().hex[:6].upper()}"
-            if not values.get("reported_at"):
-                values["reported_at"] = datetime.now(timezone.utc).isoformat()
+            import uuid
+            values = dict(values)
+            now = datetime.now(timezone.utc)
+            # These describe ingestion, not a reporter-supplied event date or local reference.
+            values["report_id"] = f"ADR-{now.year}-{uuid.uuid4().hex.upper()}"
+            values["reported_at"] = now.isoformat()
         return values
 
 

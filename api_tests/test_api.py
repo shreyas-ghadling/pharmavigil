@@ -184,3 +184,20 @@ def test_pharmacist_can_report_but_cannot_review_safety(client, monkeypatch):
     assert response.status_code == 201
     assert recorded[0]["submitted_by"]["role"] == server.PHARMACIST
     assert client.get("/api/signals").status_code == 403
+
+
+def test_submission_id_and_ingestion_time_cannot_be_supplied_by_client(client, monkeypatch):
+    from datetime import datetime, timezone
+    recorded = []
+    monkeypatch.setattr(server.sql_service, 'get_all_medicines', lambda: [{'medicine_id': 101, 'commercial_name': 'Cardiomax'}])
+    monkeypatch.setattr(server.mongo_service, 'insert_adverse_report', lambda data: recorded.append(data) or data['report_id'])
+    payload = {**reporting_payload(), 'report_id': 'ADR-SPOOFED', 'reported_at': '2099-01-01T00:00:00Z'}
+    before = datetime.now(timezone.utc)
+    headers = sign_in(client, 'doctor')
+    for _ in range(2):
+        assert client.post('/api/adverse-reports', headers=headers, json=payload).status_code == 201
+    after = datetime.now(timezone.utc)
+    assert recorded[0]['report_id'] != recorded[1]['report_id']
+    for item in recorded:
+        assert item['report_id'].startswith('ADR-') and item['report_id'] != 'ADR-SPOOFED'
+        assert before <= datetime.fromisoformat(item['reported_at']) <= after
