@@ -128,7 +128,7 @@ export default function Overview() {
                   data.signals.slice(0, 4).map((s) => (
                     <div
                       className="list-row"
-                      key={`${s.medicine}-${s.symptom}`}
+                      key={`${s.medicine_key}-${s.symptom}`}
                     >
                       <div className="list-icon">
                         <Activity size={19} />

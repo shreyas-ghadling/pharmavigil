@@ -42,6 +42,9 @@ export interface Hospital {
 }
 export interface Signal {
   medicine: string;
+  medicine_id: number | null;
+  medicine_key: string;
+  formulation: string;
   symptom: string;
   incident_count: number;
   avg_severity: number;

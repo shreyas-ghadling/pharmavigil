@@ -8,7 +8,7 @@ export default function PatternReview({ signal, days }: { signal: Signal; days: 
   const [notes, setNotes] = useState("");
   const [status, setStatus] = useState("REVIEWED");
   const cache = useQueryClient();
-  const mutation = useMutation({ mutationFn: () => api("/signal-reviews", { method: "POST", body: JSON.stringify({ medicine_name: signal.medicine, symptom: signal.symptom, window_days: days, revision: signal.revision, status, notes }) }),
+  const mutation = useMutation({ mutationFn: () => api("/signal-reviews", { method: "POST", body: JSON.stringify({ medicine_key: signal.medicine_key, symptom: signal.symptom, window_days: days, revision: signal.revision, status, notes }) }),
     onSuccess: () => { void cache.invalidateQueries({ queryKey: ["signals"] }); void cache.invalidateQueries({ queryKey: ["overview"] }); } });
   return <details><summary>Record pattern review</summary>
     <p>{signal.review_status.replaceAll("_", " ").toLowerCase()}</p>

@@ -123,9 +123,10 @@ class MongoService:
             {
                 "$unwind": "$symptoms"
             },
-            {"$group": {"_id": {"report": "$_id", "medicine": "$medicine_name",
+            {"$group": {"_id": {"report": "$_id", "medicine": {"$ifNull": ["$medicine_id", {"$concat": ["legacy:", "$medicine_name"]}]},
                                      "symptom": {"$toLower": {"$trim": {"input": "$symptoms.name"}}}},
                          "medicine_name": {"$first": "$medicine_name"},
+                         "medicine_id": {"$first": "$medicine_id"},
                          "symptom_name": {"$first": "$symptoms.name"},
                          "severity_score": {"$first": "$severity_score"},
                          "seriousness_criteria": {"$first": "$seriousness_criteria"},
@@ -134,10 +135,12 @@ class MongoService:
             {
                 "$group": {
                     "_id": {
-                        "medicine_name": "$medicine_name",
+                        "medicine_key": "$_id.medicine",
                         "symptom": "$_id.symptom"
                     },
                     "incident_count": {"$sum": 1},
+                    "medicine_name": {"$first": "$medicine_name"},
+                    "medicine_id": {"$first": "$medicine_id"},
                     "report_keys": {"$addToSet": "$_id.report"},
                     "avg_severity": {"$avg": "$severity_score"},
                     "reported_serious_cases": {"$sum": {"$cond": [
@@ -164,7 +167,9 @@ class MongoService:
             {
                 "$project": {
                     "_id": 0,
-                    "medicine": "$_id.medicine_name",
+                    "medicine": "$medicine_name",
+                    "medicine_id": 1,
+                    "medicine_key": "$_id.medicine_key",
                     "symptom": "$_id.symptom",
                     "incident_count": 1,
                     "report_keys": 1,
@@ -200,20 +205,29 @@ class MongoService:
             for stage in previous_pipeline:
                 if "incident_count" in stage.get("$match", {}):
                     stage["$match"] = {"incident_count": {"$gte": 1}}
-            previous = {(r["medicine"], r["symptom"]): r["incident_count"] for r in collection.aggregate(
+            previous = {(str(r["medicine_key"]), r["symptom"]): r["incident_count"] for r in collection.aggregate(
                 dated(now - timedelta(days=2 * window_days), cutoff) + previous_pipeline)}
             pipeline = dated(cutoff, now) + pipeline
         results = list(collection.aggregate(pipeline))
+        from app.services.sql_service import sql_service
+        catalog = {m["medicine_id"]: m for m in sql_service.get_all_medicines()}
+        reviews = {r["_id"]: r for r in mongo_client.get_database()["signal_reviews"].find({}, {"history": 0})}
 
         # Enrich results with SafetyAuditor recommendations
         for row in results:
+            row["medicine_key"] = str(row["medicine_key"])
+            medicine = catalog.get(row.get("medicine_id"))
+            row["medicine"] = medicine["commercial_name"] if medicine else row["medicine"]
+            row["formulation"] = f"{medicine['generic_name']} {medicine['strength']}" if medicine else "Catalog identity unavailable for this historical record"
             report_keys = sorted(str(key) for key in row.pop("report_keys"))
             row["revision"] = hashlib.sha256(json.dumps([report_keys, row["incident_count"], row["avg_severity"], row["reported_serious_cases"]]).encode()).hexdigest()
-            row["review_key"] = hashlib.sha256(json.dumps([row["medicine"], row["symptom"], window_days]).encode()).hexdigest()
-            review = mongo_client.get_database()["signal_reviews"].find_one({"_id": row["review_key"]}, {"_id": 0, "history": 0})
+            row["review_key"] = hashlib.sha256(json.dumps([row["medicine_key"], row["symptom"], window_days]).encode()).hexdigest()
+            review = reviews.get(row["review_key"])
+            if review:
+                review = {k: v for k, v in review.items() if k != "_id"}
             row["review"] = review
             row["review_status"] = review["status"] if review and review["revision"] == row["revision"] else "NEEDS_REVIEW"
-            row["previous_period_count"] = previous.get((row["medicine"], row["symptom"]), 0) if window_days else None
+            row["previous_period_count"] = previous.get((row["medicine_key"], row["symptom"]), 0) if window_days else None
             eval_data = SafetyAuditor.evaluate_signal_alert(
                 medicine_name=row["medicine"],
                 symptom=row["symptom"],
@@ -230,11 +244,11 @@ class MongoService:
 
         return results
 
-    def review_pattern(self, medicine_name, symptom, window_days, revision, status, notes, user):
+    def review_pattern(self, medicine_key, symptom, window_days, revision, status, notes, user):
         from datetime import datetime, timezone
         from app.utils.exceptions import PharmavigilException
         pattern = next((r for r in self.execute_safety_signal_detection_pipeline(1, 1, window_days)
-                        if r["medicine"] == medicine_name and r["symptom"] == symptom), None)
+                        if r["medicine_key"] == medicine_key and r["symptom"] == symptom), None)
         if not pattern or pattern["revision"] != revision:
             raise PharmavigilException("Reports changed. Refresh the patterns before saving this review.")
         review = {"revision": revision, "status": status, "notes": notes,

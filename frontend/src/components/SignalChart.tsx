@@ -15,7 +15,7 @@ export default function SignalChart({ signals }: { signals: Signal[] }) {
         <BarChart
           data={signals.map((s) => ({
             ...s,
-            name: `${s.medicine}: ${s.symptom}`,
+            name: `${s.medicine} (${s.medicine_id ?? "legacy"}): ${s.symptom}`,
           }))}
           layout="vertical"
           margin={{ left: 10, right: 25 }}

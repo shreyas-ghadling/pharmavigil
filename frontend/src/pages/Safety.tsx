@@ -88,7 +88,7 @@ export default function Safety() {
               {signals.data.map((s) => (
                 <article
                   className="signal-card"
-                  key={`${s.medicine}-${s.symptom}`}
+                  key={`${s.medicine_key}-${s.symptom}`}
                 >
                   <div className="signal-top">
                     <span className="list-icon">
@@ -97,6 +97,7 @@ export default function Safety() {
                     <ReviewPriorityBadge value={s.review_priority} />
                   </div>
                   <h3>{s.medicine}</h3>
+                  <p className="small muted">{s.formulation} · Medicine ID {s.medicine_id ?? "unrecorded"}</p>
                   <p>{s.symptom}</p>
                   <p className="small muted">Review status: {s.review_status.replaceAll("_", " ").toLowerCase()}</p>
                   {s.previous_period_count !== null ? <p className="small muted">{s.incident_count} reports this period; {s.previous_period_count} in the preceding {days} days.</p> : null}

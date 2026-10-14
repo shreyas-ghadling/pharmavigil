@@ -276,7 +276,7 @@ def signals(min_severity: float = Query(3, ge=1, le=5), min_incidents: int = Que
 
 
 class PatternReview(BaseModel):
-    medicine_name: str = Field(min_length=2, max_length=150)
+    medicine_key: str = Field(min_length=1, max_length=170)
     symptom: str = Field(min_length=2, max_length=100)
     window_days: int = Field(ge=0, le=365)
     revision: str = Field(min_length=64, max_length=64)
@@ -286,7 +286,7 @@ class PatternReview(BaseModel):
 
 @app.post("/api/signal-reviews")
 def review_pattern(payload: PatternReview, user=Depends(access(ADMIN))):
-    return mongo_service.review_pattern(payload.medicine_name, payload.symptom, payload.window_days,
+    return mongo_service.review_pattern(payload.medicine_key, payload.symptom, payload.window_days,
                                        payload.revision, payload.status, payload.notes, user)
 
 
