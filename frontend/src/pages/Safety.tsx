@@ -170,6 +170,9 @@ export default function Safety() {
                 Reporter: {r.reporter_type.replaceAll("_", " ").toLowerCase()} ·
                 Patient age: {r.patient_demographics?.age ?? "Not recorded"}
               </p>
+              <p>Serious outcomes: {r.seriousness_criteria == null ? "Not recorded or unknown"
+                : r.seriousness_criteria.length ? r.seriousness_criteria.map((c) => c.replaceAll("_", " ").toLowerCase()).join(", ")
+                : "None reported"}</p>
             </details>
           ))
         ) : search !== null ? (

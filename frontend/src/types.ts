@@ -76,6 +76,7 @@ export interface ClinicalReport {
   clinical_notes: string;
   reported_at: string;
   reporter_type: string;
+  seriousness_criteria?: string[] | null;
   patient_demographics?: {
     age: number;
     gender: string;
@@ -106,5 +107,6 @@ export interface AdverseReport {
   };
   symptoms: Symptom[];
   severity_score: number;
+  seriousness_criteria: string[] | null;
   clinical_notes: string;
 }

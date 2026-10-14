@@ -39,7 +39,10 @@ class AdverseReportCreate(BaseModel):
     )
     patient_demographics: PatientDemographicsSchema
     symptoms: List[SymptomSchema] = Field(..., min_length=1, description="At least one observed symptom is required")
-    severity_score: int = Field(..., description="Clinical severity score from 1 (mild) to 5 (life-threatening)")
+    severity_score: int = Field(..., description="Reported intensity on the project's 1 (mild) to 5 (very severe) scale, independent of seriousness")
+    seriousness_criteria: Optional[List[Literal[
+        "DEATH", "LIFE_THREATENING", "HOSPITALIZATION", "DISABILITY", "CONGENITAL_ANOMALY", "MEDICALLY_IMPORTANT"
+    ]]] = Field(default=None, description="Reported serious outcomes; null means unknown, an empty list means none reported")
     hospital_id: Optional[int] = Field(default=None, gt=0, description="Reporting hospital identifier")
     clinical_notes: Optional[str] = Field(default="", max_length=2000, description="Doctor observations or patient notes")
     reported_at: Optional[str] = Field(default=None, description="ISO timestamp of submission")

@@ -37,6 +37,14 @@ const conditions = [
   "Chronic Kidney Disease",
   "Neuropathic Pain",
 ];
+const seriousOutcomes = [
+  ["DEATH", "Death"],
+  ["LIFE_THREATENING", "Life-threatening at the time of the event"],
+  ["HOSPITALIZATION", "Hospital admission or prolonged hospitalization"],
+  ["DISABILITY", "Persistent or significant disability"],
+  ["CONGENITAL_ANOMALY", "Congenital anomaly or birth defect"],
+  ["MEDICALLY_IMPORTANT", "Other medically important event"],
+] as const;
 type ReportDraft = Omit<AdverseReport, "patient_demographics" | "symptoms" | "severity_score"> & {
   patient_demographics: {
     age: number | "";
@@ -59,6 +67,7 @@ const initial: ReportDraft = {
   },
   symptoms: [],
   severity_score: "",
+  seriousness_criteria: null,
   clinical_notes: "",
 };
 export default function Reporting() {
@@ -69,6 +78,7 @@ export default function Reporting() {
   const [customConditions, setCustomConditions] = useState<string[]>([]);
   const [symptomName, setSymptomName] = useState("");
   const [conditionName, setConditionName] = useState("");
+  const [seriousnessChoice, setSeriousnessChoice] = useState("");
   const cache = useQueryClient();
   const meds = useQuery({
     queryKey: ["medicines"],
@@ -146,6 +156,10 @@ export default function Reporting() {
       setError("Select at least one symptom, enter its onset, and choose a severity.");
       return;
     }
+    if (step === 2 && (!seriousnessChoice || (seriousnessChoice === "reported" && !draft.seriousness_criteria?.length))) {
+      setError("Indicate whether serious outcomes are reported, absent, or unknown. Select any reported outcomes.");
+      return;
+    }
     setStep((s) => Math.min(3, s + 1));
   }
   if (meds.isPending) return <Loading />;
@@ -180,6 +194,7 @@ export default function Reporting() {
               setCustomConditions([]);
               setSymptomName("");
               setConditionName("");
+              setSeriousnessChoice("");
             }}
           >
             Start another report
@@ -481,26 +496,10 @@ export default function Reporting() {
                           ? { ...v, onset_minutes: e.target.checked ? null : "" } : v) })} />
                       Onset unknown
                     </label>
-                    <label className="check-label">
-                      <input
-                        type="checkbox"
-                        checked={s.is_critical}
-                        onChange={(e) =>
-                          patch({
-                            symptoms: draft.symptoms.map((v, j) =>
-                              j === i
-                                ? { ...v, is_critical: e.target.checked }
-                                : v,
-                            ),
-                          })
-                        }
-                      />
-                      Life-threatening symptom
-                    </label>
                   </div>
                 ))}
                 <label>
-                  Severity
+                  Reaction intensity
                   <select
                     required
                     value={draft.severity_score}
@@ -509,15 +508,36 @@ export default function Reporting() {
                     }
                   >
                     <option value="">Select severity</option>
-                    {[1, 2, 3, 4, 5].map((score) => (
-                      <option key={score} value={score}>{score}/5</option>
+                    {["Mild", "Mild to moderate", "Moderate", "Severe", "Very severe"].map((label, i) => (
+                      <option key={label} value={i + 1}>{i + 1}/5 - {label}</option>
                     ))}
                   </select>
-                  <span className="range-labels">
-                    <span>Mild discomfort</span>
-                    <span>Life-threatening</span>
-                  </span>
+                  <span className="small muted">Project intensity scale. Intensity and seriousness are recorded separately.</span>
                 </label>
+                <fieldset>
+                  <legend>Serious outcomes</legend>
+                  <label>Seriousness information
+                    <select required value={seriousnessChoice} onChange={(e) => {
+                      setSeriousnessChoice(e.target.value);
+                      patch({ seriousness_criteria: e.target.value === "unknown" || !e.target.value ? null : [] });
+                    }}>
+                      <option value="">Select an assessment</option>
+                      <option value="reported">One or more serious outcomes reported</option>
+                      <option value="none">No serious outcomes reported</option>
+                      <option value="unknown">Unknown</option>
+                    </select>
+                  </label>
+                  {seriousnessChoice === "reported" ? <div className="checkbox-grid">
+                    {seriousOutcomes.map(([value, label]) => <label className="check-label" key={value}>
+                      <input type="checkbox" checked={draft.seriousness_criteria?.includes(value) ?? false}
+                        onChange={(e) => patch({ seriousness_criteria: e.target.checked
+                          ? [...(draft.seriousness_criteria ?? []), value]
+                          : draft.seriousness_criteria?.filter((v) => v !== value) ?? [] })} />
+                      {label}
+                    </label>)}
+                  </div> : null}
+                  <p className="small muted">Record known outcomes; a symptom name alone does not establish seriousness.</p>
+                </fieldset>
                 <label>
                   Clinical notes
                   <textarea
@@ -548,8 +568,14 @@ export default function Reporting() {
                     </dd>
                   </div>
                   <div>
-                    <dt>Severity</dt>
+                    <dt>Reaction intensity</dt>
                     <dd>{draft.severity_score}/5</dd>
+                  </div>
+                  <div>
+                    <dt>Serious outcomes</dt>
+                    <dd>{draft.seriousness_criteria === null ? "Unknown" : draft.seriousness_criteria.length
+                      ? draft.seriousness_criteria.map((c) => seriousOutcomes.find(([value]) => value === c)?.[1] ?? c).join("; ")
+                      : "None reported"}</dd>
                   </div>
                   <div>
                     <dt>Conditions</dt>

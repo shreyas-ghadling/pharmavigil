@@ -151,3 +151,15 @@ def test_unknown_or_delayed_onset_is_accepted(client, monkeypatch, onset):
     response = client.post("/api/adverse-reports", headers=sign_in(client, "doctor"), json=payload)
     assert response.status_code == 201
     assert recorded[0]["symptoms"][0]["onset_minutes"] == onset
+
+
+@pytest.mark.parametrize("criteria", [None, [], ["HOSPITALIZATION"], ["DEATH", "LIFE_THREATENING"]])
+def test_serious_outcomes_are_independent_of_intensity(client, monkeypatch, criteria):
+    recorded = []
+    monkeypatch.setattr(server.sql_service, "get_all_medicines", lambda: [{"medicine_id": 101, "commercial_name": "Cardiomax"}])
+    monkeypatch.setattr(server.mongo_service, "insert_adverse_report", lambda data: recorded.append(data) or "ADR-TEST")
+    payload = {**reporting_payload(), "seriousness_criteria": criteria}
+    response = client.post("/api/adverse-reports", headers=sign_in(client, "doctor"), json=payload)
+    assert response.status_code == 201
+    assert recorded[0]["seriousness_criteria"] == criteria
+    assert recorded[0]["severity_score"] == 1
