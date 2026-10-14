@@ -63,7 +63,7 @@ class SQLService:
             conditions.append("b.medicine_id = %s")
             params.append(medicine_id)
         if only_active:
-            conditions.append("b.recall_status = 'ACTIVE' AND b.expiry_date >= CURDATE()")
+            conditions.append("b.recall_status = 'ACTIVE' AND b.expiry_date >= CURDATE() AND b.manufacturing_date <= CURDATE()")
 
         if conditions:
             base_query += " WHERE " + " AND ".join(conditions)
@@ -175,6 +175,9 @@ class SQLService:
         Validates batch status before recording distribution.
         Raises ExpiredBatchDispenseError or RecalledBatchOperationError if invalid.
         """
+        dispatched_on = date.fromisoformat(dispatch_date) if dispatch_date else date.today()
+        if dispatched_on > date.today():
+            raise ValueError("The selected batch dispatch date cannot be in the future.")
         # Serialize stock changes on the batch row so concurrent dispatches cannot oversell.
         with mysql_client.get_cursor(dictionary=True) as cursor:
             cursor.execute("SELECT * FROM batches WHERE batch_number = %s FOR UPDATE", (batch_number,))
@@ -192,6 +195,8 @@ class SQLService:
                 recall_status=batch_info["recall_status"],
             )
             domain_batch.validate_for_dispensing()
+            if dispatched_on < domain_batch.manufacturing_date or dispatched_on > domain_batch.expiry_date:
+                raise ValueError("The selected batch dispatch date must be between its manufacturing and expiry dates.")
             cursor.execute("SELECT stock_unit FROM medicines WHERE medicine_id=%s", (batch_info["medicine_id"],))
             if cursor.fetchone()["stock_unit"] == "unspecified":
                 raise ValueError("The selected batch has no defined inventory unit.")
@@ -201,9 +206,22 @@ class SQLService:
             available = cursor.fetchone()["received"] - distributed
             if quantity < 1 or quantity > available:
                 raise ValueError(f"Only {available} units are available for dispatch.")
+            # A backdated dispatch must not make any recorded daily balance negative.
+            cursor.execute("SELECT receipt_date AS event_date, quantity_received AS delta FROM stock_receipts WHERE batch_number=%s", (batch_number,))
+            events = cursor.fetchall()
+            cursor.execute("SELECT dispatch_date AS event_date, -quantity_delivered AS delta FROM batch_distribution WHERE batch_number=%s", (batch_number,))
+            events += cursor.fetchall()
+            daily = {dispatched_on: -quantity}
+            for event in events:
+                daily[event["event_date"]] = daily.get(event["event_date"], 0) + event["delta"]
+            balance = 0
+            for day in sorted(daily):
+                balance += daily[day]
+                if balance < 0:
+                    raise ValueError("The selected batch has insufficient recorded stock for that dispatch date.")
             cursor.execute(
                 "INSERT INTO batch_distribution (batch_number, hospital_id, quantity_delivered, dispatch_date) VALUES (%s, %s, %s, %s)",
-                (batch_number, hospital_id, quantity, dispatch_date or str(date.today())),
+                (batch_number, hospital_id, quantity, dispatched_on),
             )
             return cursor.rowcount
 

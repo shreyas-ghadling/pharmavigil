@@ -108,6 +108,8 @@ class Batch:
         Validates whether the batch can be safely dispensed or distributed.
         Raises domain exceptions if the batch is expired or recalled.
         """
+        if self.manufacturing_date > (current_date or date.today()):
+            raise ValueError("The selected batch has not been manufactured yet.")
         if self.recall_status in ("RECALLED", "UNDER_INVESTIGATION"):
             raise RecalledBatchOperationError(
                 batch_number=self.batch_number,

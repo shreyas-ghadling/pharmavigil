@@ -346,6 +346,7 @@ export default function Inventory() {
                   type="date"
                   name="date"
                   required
+                  max={new Date().toLocaleDateString("en-CA")}
                   defaultValue={new Date().toLocaleDateString("en-CA")}
                 />
               </label>
